@@ -177,7 +177,22 @@ function App() {
                   <button
                     className="btn-analyze"
                     disabled={!selectedVideo}
-                    onClick={() => setView('analysis')}
+                    onClick={async () => {
+                      setView('analysis');
+                      try {
+                        const ad_id = selectedVideo.split('_')[0];
+                        console.log('Starting analysis for ad:', ad_id);
+                        const response = await fetch('http://127.0.0.1:8000/analysis/start', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ ad_id })
+                        });
+                        const data = await response.json();
+                        console.log('Analysis start response:', data);
+                      } catch (error) {
+                        console.error('Failed to start analysis:', error);
+                      }
+                    }}
                   >
                     <svg
                       className="upload-icon"

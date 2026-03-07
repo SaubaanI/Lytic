@@ -24,6 +24,18 @@ app.mount("/Uploads", StaticFiles(directory="Uploads"), name="uploads")
 sessions = {}
 uploaded_ads = {}
 
+# Pre-populate `uploaded_ads` from existing files in UPLOAD_DIR on startup
+if UPLOAD_DIR.exists():
+    for file in UPLOAD_DIR.glob("*.mp4"):
+        # Assuming filename format is "ad_id_original_filename.mp4"
+        parts = file.name.split("_", 1)
+        if len(parts) == 2:
+            ad_id = parts[0]
+            uploaded_ads[ad_id] = {
+                "original_filename": parts[1],
+                "saved_filename": file.name
+            }
+
 @app.get("/")
 def root():
     return {"message": "Backend is running"}

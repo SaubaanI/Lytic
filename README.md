@@ -7,3 +7,7 @@ Frontend
 cd frontend
 cd antigravity-frontend 
 npm run dev 
+
+
+
+#overall score Strong points weak points, recomendations
