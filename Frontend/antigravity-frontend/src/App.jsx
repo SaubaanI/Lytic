@@ -10,6 +10,7 @@ function App() {
   const [showVideos, setShowVideos] = useState(false);
   const [videos, setVideos] = useState([]);
   const [selectedVideo, setSelectedVideo] = useState(null);
+  const [view, setView] = useState('home');
 
   const fetchVideos = async () => {
     try {
@@ -82,6 +83,7 @@ function App() {
 
   return (
     <div className="app-container">
+      {view === 'home' && (
       <main className="content-wrapper">
         <div className="logo-container">
           <h1 className="logo-text">
@@ -175,7 +177,7 @@ function App() {
                   <button
                     className="btn-analyze"
                     disabled={!selectedVideo}
-                    onClick={() => console.log('Analyze video:', selectedVideo)}
+                    onClick={() => setView('analysis')}
                   >
                     <svg
                       className="upload-icon"
@@ -196,6 +198,38 @@ function App() {
 
 
       </main>
+      )}
+
+      {view === 'analysis' && (
+        <main className="content-wrapper analysis-view">
+          <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-start', marginBottom: '2rem' }}>
+            <button className="btn-secondary" onClick={() => setView('home')} style={{ padding: '0.75rem 1.5rem', fontSize: '1rem' }}>
+              <svg 
+                className="upload-icon" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+                style={{ width: '20px', height: '20px' }}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Back
+            </button>
+          </div>
+          <h2 className="section-title" style={{ textAlign: 'center', fontSize: '2.5rem', marginBottom: '2rem' }}>Analysis</h2>
+          <div className="analysis-video-container">
+            {selectedVideo && (
+              <video 
+                src={videos.find(v => v.id === selectedVideo)?.url.split('#')[0]} 
+                controls 
+                autoPlay
+                className="analysis-video-player"
+              />
+            )}
+          </div>
+        </main>
+      )}
     </div>
   );
 }
