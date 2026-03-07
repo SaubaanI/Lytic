@@ -1,2 +1,4 @@
 # Lytic
-An application for businesses to gauge viewer engagement through biometrics using Presage and AI analysis through Gemini
+An application for businesses to gauge viewer engagement through biometrics using Presage and AI analysis through Gemini and Google Antigravity to help businesses make better decisions. 
+
+
