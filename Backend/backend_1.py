@@ -2,7 +2,6 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from moviepy import VideoFileClip
 from pathlib import Path
 from fastapi.middleware.cors import CORSMiddleware
-import shutil
 import uuid
 from pydantic import BaseModel
 from typing import List, Optional
@@ -16,14 +15,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/")
-def root():
-    return {"message": "Backend running"}
 UPLOAD_DIR = Path("Uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
 sessions = {}
-results = {}
 uploaded_ads = {}
 
 @app.get("/")
@@ -36,17 +31,15 @@ def get_videos():
     if UPLOAD_DIR.exists():
         for file in UPLOAD_DIR.glob("*.mp4"):
             videos.append({
-                "name": file.name,
-                "date": "Uploaded", 
-                "duration": "N/A"
+                "name": file.name
             })
     return {"videos": videos}
 
 @app.post("/upload-ad")
 async def upload_ad(file: UploadFile = File(...)):
-    file_path = UPLOAD_DIR / file.filename
     ad_id = str(uuid.uuid4())
     saved_name = f"{ad_id}_{file.filename}"
+    file_path = UPLOAD_DIR / saved_name
 
     contents = await file.read()
     with open(file_path, "wb") as buffer:
