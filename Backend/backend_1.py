@@ -31,7 +31,7 @@ def get_videos():
     if UPLOAD_DIR.exists():
         for file in UPLOAD_DIR.glob("*.mp4"):
             videos.append({
-                "name": file.name
+                "name": file.name[37:]
             })
     return {"videos": videos}
 
@@ -52,7 +52,7 @@ async def upload_ad(file: UploadFile = File(...)):
 
     return {
         "ad_id": ad_id,
-        "filename": file.filename,
+        "filename": saved_name,
     }
 
 @app.post("/analysis/start")
