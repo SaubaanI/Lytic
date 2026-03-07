@@ -1,4 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.staticfiles import StaticFiles
 from moviepy import VideoFileClip
 from pathlib import Path
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,6 +19,8 @@ app.add_middleware(
 UPLOAD_DIR = Path("Uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
+app.mount("/Uploads", StaticFiles(directory="Uploads"), name="uploads")
+
 sessions = {}
 uploaded_ads = {}
 
@@ -31,7 +34,9 @@ def get_videos():
     if UPLOAD_DIR.exists():
         for file in UPLOAD_DIR.glob("*.mp4"):
             videos.append({
-                "name": file.name[37:]
+                "id": file.name,
+                "name": file.name[37:],
+                "url": f"http://127.0.0.1:8000/Uploads/{file.name}#t=0.001"
             })
     return {"videos": videos}
 

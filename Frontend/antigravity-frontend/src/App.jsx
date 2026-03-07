@@ -118,18 +118,18 @@ function App() {
           </button>
 
           <button className="btn-secondary" onClick={toggleVideoList}>
-            <svg 
-              className="upload-icon" 
-              fill="none" 
-              stroke="currentColor" 
+            <svg
+              className="upload-icon"
+              fill="none"
+              stroke="currentColor"
               viewBox="0 0 24 24"
               xmlns="http://www.w3.org/2000/svg"
             >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={2.5} 
-                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" 
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2.5}
+                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
               />
             </svg>
             {showVideos ? 'Hide Videos' : 'Select Video'}
@@ -153,35 +153,34 @@ function App() {
               <>
                 <div className="video-grid">
                   {videos.map(video => (
-                    <div 
-                      key={video.id} 
+                    <div
+                      key={video.id}
                       className={`video-card ${selectedVideo === video.id ? 'selected' : ''}`}
                       onClick={() => setSelectedVideo(video.id)}
                     >
                       <div className="video-thumbnail">
-                        <div className="thumbnail-overlay"></div>
+                        <video src={video.url} preload="metadata" muted playsInline disablePictureInPicture className="thumbnail-player" />
                         <svg className="play-icon" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
                         </svg>
                       </div>
                       <div className="video-info">
                         <div className="video-title">{video.name}</div>
-                        <div className="video-meta">{video.date} • {video.duration}</div>
                       </div>
                     </div>
                   ))}
                 </div>
-                
+
                 <div style={{ marginTop: '2rem', textAlign: 'center' }}>
-                  <button 
-                    className="btn-analyze" 
+                  <button
+                    className="btn-analyze"
                     disabled={!selectedVideo}
                     onClick={() => console.log('Analyze video:', selectedVideo)}
                   >
-                    <svg 
-                      className="upload-icon" 
-                      fill="none" 
-                      stroke="currentColor" 
+                    <svg
+                      className="upload-icon"
+                      fill="none"
+                      stroke="currentColor"
                       viewBox="0 0 24 24"
                       xmlns="http://www.w3.org/2000/svg"
                     >

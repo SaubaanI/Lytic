@@ -27,8 +27,15 @@ body {
 
 /* Animations */
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(15px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .app-container {
@@ -41,13 +48,13 @@ body {
   min-height: 100vh;
   /* Very subtle background gradients for a premium feel without clutter */
   background: radial-gradient(circle at top right, var(--primary-light) 0%, transparent 50%),
-              radial-gradient(circle at bottom left, var(--primary-light) 0%, transparent 50%);
+    radial-gradient(circle at bottom left, var(--primary-light) 0%, transparent 50%);
 }
 
 .content-wrapper {
   text-align: center;
   animation: fadeInUp 0.8s ease-out;
-  max-width: 600px;
+  max-width: 800px; /* Increased from 600px to make the video list 33% larger */
   width: 100%;
 }
 
@@ -76,7 +83,8 @@ body {
   font-size: 1.125rem;
   font-weight: 500;
   font-family: inherit;
-  border-radius: 9999px; /* Pill shape */
+  border-radius: 9999px;
+  /* Pill shape */
   cursor: pointer;
   transition: var(--transition);
   display: inline-flex;
@@ -143,7 +151,8 @@ body {
 /* Video Grid Styles */
 .video-section {
   width: 100%;
-  max-width: 900px;
+  max-width: 1170px;
+  /* Increased by 30% from 900px */
   margin: 0 auto;
   animation: fadeInUp 0.5s ease-out;
   padding-top: 2rem;
@@ -161,7 +170,8 @@ body {
 .video-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1.5rem;
+  gap: 2rem;
+  /* slightly increased gap for larger cards */
 }
 
 .video-card {
@@ -182,7 +192,8 @@ body {
 .video-thumbnail {
   width: 100%;
   aspect-ratio: 16/9;
-  background-color: #f1f5f9;
+  background-color: #020617;
+  /* Darker bg behind videos */
   position: relative;
   display: flex;
   align-items: center;
@@ -190,30 +201,29 @@ body {
   overflow: hidden;
 }
 
+.thumbnail-player {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .play-icon {
-  width: 48px;
-  height: 48px;
+  position: absolute;
+  width: 64px;
+  /* Scaled up icon for larger thumbnail */
+  height: 64px;
   color: white;
   opacity: 0.8;
   transition: var(--transition);
-  z-index: 1;
+  z-index: 10;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
 }
 
 .video-card:hover .play-icon {
   opacity: 1;
   transform: scale(1.1);
   color: var(--primary);
-}
-
-.thumbnail-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.2);
-  transition: var(--transition);
-}
-
-.video-card:hover .thumbnail-overlay {
-  background: rgba(0, 0, 0, 0.1);
 }
 
 .video-info {
