@@ -21,6 +21,20 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 def root():
     return {"message": "Backend is running"}
 
+@app.get("/videos")
+def get_videos():
+    # Only return .mp4 files from the Uploads directory
+    videos = []
+    if UPLOAD_DIR.exists():
+        for file in UPLOAD_DIR.glob("*.mp4"):
+            videos.append({
+                "id": file.name,
+                "name": file.name,
+                "date": "Uploaded", 
+                "duration": "N/A"
+            })
+    return {"videos": videos}
+
 @app.post("/upload-ad")
 async def upload_ad(file: UploadFile = File(...)):
     file_path = UPLOAD_DIR / file.filename
