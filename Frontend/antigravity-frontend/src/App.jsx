@@ -9,6 +9,7 @@ function App() {
   const [result, setResult] = useState(null);
   const [showVideos, setShowVideos] = useState(false);
   const [videos, setVideos] = useState([]);
+  const [selectedVideo, setSelectedVideo] = useState(null);
 
   const fetchVideos = async () => {
     try {
@@ -61,6 +62,9 @@ function App() {
       }
 
       setMessage('Upload successful');
+      setTimeout(() => {
+        setMessage('');
+      }, 3000);
 
       console.log('Backend  response:', data);
     } catch (error) {
@@ -146,22 +150,47 @@ function App() {
             {videos.length === 0 ? (
               <p style={{ color: 'var(--text-muted)' }}>No videos found in Uploads folder.</p>
             ) : (
-              <div className="video-grid">
-                {videos.map(video => (
-                  <div key={video.id} className="video-card">
-                    <div className="video-thumbnail">
-                      <div className="thumbnail-overlay"></div>
-                      <svg className="play-icon" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                      </svg>
+              <>
+                <div className="video-grid">
+                  {videos.map(video => (
+                    <div 
+                      key={video.id} 
+                      className={`video-card ${selectedVideo === video.id ? 'selected' : ''}`}
+                      onClick={() => setSelectedVideo(video.id)}
+                    >
+                      <div className="video-thumbnail">
+                        <div className="thumbnail-overlay"></div>
+                        <svg className="play-icon" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="video-info">
+                        <div className="video-title">{video.name}</div>
+                        <div className="video-meta">{video.date} • {video.duration}</div>
+                      </div>
                     </div>
-                    <div className="video-info">
-                      <div className="video-title">{video.name}</div>
-                      <div className="video-meta">{video.date} • {video.duration}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+                
+                <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+                  <button 
+                    className="btn-analyze" 
+                    disabled={!selectedVideo}
+                    onClick={() => console.log('Analyze video:', selectedVideo)}
+                  >
+                    <svg 
+                      className="upload-icon" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Analyze
+                  </button>
+                </div>
+              </>
             )}
           </div>
         )}
