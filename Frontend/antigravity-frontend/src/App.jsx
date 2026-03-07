@@ -9,19 +9,48 @@ function App() {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (event) => {
+  const handleFileChange =  async (event) => {
     const file = event.target.files[0];
-    if (file) {
-      console.log('Selected file:', file.name);
-      // Front-end only for now, back-end upload logic would go here
+    if (!file) {
+      return;
+
     }
-    
-    // Reset the input so the same file can be selected again if needed
-    if (event.target) {
-      event.target.value = '';
+    console.log('Selected file:', file.name);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      setUploading(true);
+      setMessage('Uploading...');
+      setResult(null);
+      const response = await fetch ('http://127.0.0.1:8000/upload-ad', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || 'Upload Failed');
+      }
+
+      setMessage('Upload successful');
+      setResult(data);
+      console.log('Backend  response:', data);
+    } catch (error){
+      console.error('Upload error:', error);
+      setMessage('Upload failed: ${error.message}');
+    } finally {
+      setUploading(false);
+      
+      if (event.target){
+        event.target.value= '';
+      }
     }
   };
 
+ 
   return (
     <div className="app-container">
       <main className="content-wrapper">
