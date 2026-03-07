@@ -47,7 +47,7 @@ function App() {
       console.log('Backend  response:', data);
     } catch (error){
       console.error('Upload error:', error);
-      setMessage('Upload failed: ${error.message}');
+      setMessage(`Upload failed: ${error.message}`);
     } finally {
       setUploading(false);
       
@@ -93,7 +93,6 @@ function App() {
               />
             </svg>
             {uploading ? 'Uploading... ' : 'Upload'}
-            Upload
           </button>
         </div>
       {message && <p style={{ marginTop: '20px' }}>{message}</p>}
