@@ -1,7 +1,27 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import './index.css';
 
 function App() {
+  const fileInputRef = useRef(null);
+
+  const handleUploadClick = () => {
+    // Trigger the hidden file input
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      console.log('Selected file:', file.name);
+      // Front-end only for now, back-end upload logic would go here
+    }
+    
+    // Reset the input so the same file can be selected again if needed
+    if (event.target) {
+      event.target.value = '';
+    }
+  };
+
   return (
     <div className="app-container">
       <main className="content-wrapper">
@@ -12,7 +32,16 @@ function App() {
         </div>
         
         <div>
-          <button className="btn-upload">
+          {/* Hidden file input restricted to .mp4 */}
+          <input 
+            type="file" 
+            accept=".mp4" 
+            ref={fileInputRef} 
+            onChange={handleFileChange}
+            style={{ display: 'none' }} 
+          />
+          
+          <button className="btn-upload" onClick={handleUploadClick}>
             <svg 
               className="upload-icon" 
               fill="none" 
