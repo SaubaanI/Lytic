@@ -4,6 +4,13 @@ import './index.css';
 function App() {
   const fileInputRef = useRef(null);
 
+  const [uploading, setUploading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [result, setResult] = useState(null); 
+
+
+
+
   const handleUploadClick = () => {
     // Trigger the hidden file input
     fileInputRef.current?.click();
@@ -70,7 +77,7 @@ function App() {
             style={{ display: 'none' }} 
           />
           
-          <button className="btn-upload" onClick={handleUploadClick}>
+          <button className="btn-upload" onClick={handleUploadClick} disabled={uploading}>
             <svg 
               className="upload-icon" 
               fill="none" 
@@ -85,9 +92,19 @@ function App() {
                 d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" 
               />
             </svg>
+            {uploading ? 'Uploading... ' : 'Upload'}
             Upload
           </button>
         </div>
+      {message && <p style={{ marginTop: '20px' }}>{message}</p>}
+
+      {result && (
+        <pre style={{ marginTop: '20px', textAlign: 'left' }}>
+        {JSON.stringify(result, null, 2)}
+        </pre>
+      )}
+
+
       </main>
     </div>
   );
