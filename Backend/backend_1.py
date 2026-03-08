@@ -8,7 +8,6 @@ from pydantic import BaseModel
 from typing import List, Optional
 from google import genai
 import os
-from pathlib import Path
 import time
 
 #TODO: remove later
@@ -117,11 +116,8 @@ async def start_analysis(payload: dict):
     file_path = UPLOAD_DIR / saved_filename
     try:
         uploaded_file = upload_video(file_path)
-
         video_text = get_video_understanding(uploaded_file)
-
         final_analysis = analyze_engagement(video_text, metrics_json)
-
         return final_analysis
 
     except Exception as e:
@@ -132,12 +128,9 @@ async def start_analysis(payload: dict):
 
 def upload_video(video_file: Path):
     uploaded = client.files.upload(file=str(video_file))
-
     while getattr(uploaded, "state", None) and uploaded.state.name == "PROCESSING":
-        # Increased to 10 seconds to avoid hitting the 15 RPM free tier quota during video processing
         time.sleep(10)
         uploaded = client.files.get(name=uploaded.name)
-
     return uploaded
 
 def get_video_understanding(uploaded_file):
@@ -147,97 +140,74 @@ def get_video_understanding(uploaded_file):
             uploaded_file,
             """
             Analyze this advertisement video.
-
             Return:
-
             1) Full transcript with timestamps
             2) Scene summary describing what visually happens
-
             Format:
-
             TRANSCRIPT:
             [0.0-2.4] text
-
             SCENES:
             [0.0-2.4] description
             """
         ]
     )
-
     return response.text
 
 def analyze_engagement(video_text, biometrics):
+    prompt_text = f"""
+    You are an expert advertisement analyst. Analyze the following video content and viewer biometrics to provide a detailed engagement report.
+
+    VIDEO ANALYSIS:
+    {video_text}
+
+    VIEWER BIOMETRICS:
+    {biometrics}
+
+    You MUST return a valid JSON object with the following structure:
+    {{
+      "overallScore": 87,
+      "hookScore": 8,
+      "clarityScore": 7,
+      "pacingScore": 6,
+      "ctaScore": 7,
+      "strongMoments": [
+        {{
+          "timestamp": "0:03 - 0:05",
+          "description": "Product reveal with bold text overlay",
+          "reason": "Viewer engagement increased sharply during this moment"
+        }}
+      ],
+      "weakMoments": [
+        {{
+          "timestamp": "0:10 - 0:13",
+          "description": "Extended product demo",
+          "reason": "Viewer engagement dropped and pacing slowed"
+        }}
+      ],
+      "strongPoints": [
+        "Clear product reveal",
+        "Strong emotional hook in opening line"
+      ],
+      "lowPoints": [
+        "Middle section pacing slows down",
+        "Call-to-action lacks urgency"
+      ],
+      "suggestions": [
+        "Shorten the product demo by 2–3 seconds",
+        "Add a stronger CTA phrase near the end",
+        "Introduce branding earlier in the ad"
+      ],
+      "keyInsight": "Viewer engagement peaks during the product reveal, suggesting the ad's strongest element is the visual introduction of the product."
+    }}
+    """
 
     response = client.models.generate_content(
         model="gemini-2.5-flash",
-        contents=f"""
-        You are analyzing advertisement engagement.
-
-        Video Analysis:
-        {video_text}
-
-        Viewer biometrics:
-        {biometrics}
-
-        Return VALID JSON in following format.
-        {
-        "overallScore": 87,
-        "hookScore": 8,
-        "clarityScore": 7,
-        "pacingScore": 6,
-        "ctaScore": 7,
-
-        "strongMoments": [
-            {
-            "timestamp": "3.0-5.5",
-            "description": "Product reveal with bold text overlay",
-            "reason": "Viewer engagement increased sharply during this moment"
-            }
-        ],
-
-        "weakMoments": [
-            {
-            "timestamp": "10.0-13.0",
-            "description": "Extended product demo",
-            "reason": "Viewer engagement dropped and pacing slowed"
-            }
-        ],
-
-        "strongPoints": [
-            "Clear product reveal",
-            "Strong emotional hook in opening line"
-        ],
-
-        "lowPoints": [
-            "Middle section pacing slows down",
-            "Call-to-action lacks urgency"
-        ],
-
-        "suggestions": [
-            "Shorten the product demo by 2–3 seconds",
-            "Add a stronger CTA phrase near the end",
-            "Introduce branding earlier in the ad"
-        ],
-
-        "engagementTimeline": [
-            {
-            "timestamp": 0.5,
-            "engagementScore": 0.52
-            },
-            {
-            "timestamp": 1.0,
-            "engagementScore": 0.61
-            }
-        ],
-
-        "keyInsight": "Viewer engagement peaks during the product reveal, suggesting the ad's strongest element is the visual introduction of the product."
-        }
-        """,
+        contents=prompt_text,
         config={
-        "response_mime_type": "application/json"
+            "response_mime_type": "application/json"
         }
     )
-
     return response.text
 
 class SessionMetric(BaseModel):
