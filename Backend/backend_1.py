@@ -132,7 +132,6 @@ async def start_analysis(payload: dict):
         }
         return {
             "session_id": session_id,
-            "ad_id": ad_id,
             "duration_seconds": dur,
             "start_buffer_ms": 1500,
             "stop_buffer_ms": 1500,
@@ -257,7 +256,6 @@ class MetricPoint(BaseModel):
 
 class SessionExport(BaseModel):
     sessionId: str
-    adId: str
     deviceTimeZone: str
     metrics: List[MetricPoint]
 
@@ -268,14 +266,11 @@ async def receive_session(session: SessionExport):
     if session_id not in sessions:
         raise HTTPException(status_code=404, detail="session not found")
 
-    if sessions[session_id]["ad_id"] != session.adId:
-        raise HTTPException(status_code=400, detail="adId does not match session")
-
     sessions[session_id]["status"] = "processing"
 
     biometrics = {
-        timestamp: metric.model_dump()
-        for timestamp, metric in session.metrics.items()
+        str(metric.timestampMs): metric.model_dump()
+        for metric in session.metrics
     }
 
     sessions[session_id]["raw_metrics"] = biometrics
