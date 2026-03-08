@@ -8,6 +8,8 @@ from pydantic import BaseModel
 from typing import List, Optional
 from google import genai
 import os
+from pathlib import Path
+import time
 
 #TODO: remove later
 metrics_json = {
@@ -189,10 +191,14 @@ async def start_analysis(payload: dict):
     }
 
 def transcription(video_file: Path):
-   transcript_response = client.models.generate_content(
+    uploaded = client.files.upload(file=str(video_file))
+    while getattr(uploaded, "state", None) and uploaded.state.name == "PROCESSING":
+        time.sleep(2)
+        uploaded = client.files.get(name=uploaded.name)
+    transcript_response = client.models.generate_content(
        model="gemini-2.0-flash",
        contents=[
-           video_file,
+           uploaded,
            """
            Transcribe all spoken words in this ad.
            Include timestamps.
@@ -203,28 +209,31 @@ def transcription(video_file: Path):
            [2.4-5.1] text here
            """
        ]
-   )
-   transcript_text = transcript_response.text
-   return transcript_text
+    )
+    transcript_text = transcript_response.text
+    return transcript_text
 
 
 def summary(video_file: Path):
-   summary_response = client.models.generate_content(
-       model="gemini-2.0-flash",
-       contents=[
-           video_file,
-           """
-           Describe this advertisement scene by scene.
-           Include timestamps and key moments such as:
-           - hook
-           - product reveal
-           - call to action
-           Return concise bullet points.
-           """
-       ]
-   )
-   scene_summary = summary_response.text
-   return scene_summary
+    uploaded = client.files.upload(file=str(video_file))
+    while getattr(uploaded, "state", None) and uploaded.state.name == "PROCESSING":
+        time.sleep(2)
+        uploaded = client.files.get(name=uploaded.name)
+    transcript_response = client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=[
+            uploaded,
+            """
+            Transcribe all spoken words in this ad.
+            Include timestamps.
+            Return plain text in this format:
+ 
+            [0.0-2.4] text here
+            [2.4-5.1] text here
+            """
+        ]
+    )
+    return transcript_response.text
 
 class SessionMetric(BaseModel):
     timestampMs: int
