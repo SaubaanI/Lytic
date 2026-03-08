@@ -38,6 +38,7 @@ class PresageTestActivity : AppCompatActivity() {
    private lateinit var statusText: TextView
    private lateinit var pulseText: TextView
    private lateinit var breathingText: TextView
+   private lateinit var sessionIdText: TextView
 
 
    private val mainHandler = Handler(Looper.getMainLooper())
@@ -104,6 +105,13 @@ class PresageTestActivity : AppCompatActivity() {
        statusText = findViewById(R.id.status_text)
        pulseText = findViewById(R.id.pulse_text)
        breathingText = findViewById(R.id.breathing_text)
+       sessionIdText = findViewById(android.R.id.text1) // Fallback or add to layout
+
+
+       Log.d("SESSION_FLOW", "Intent Extras Check:")
+       intent.extras?.keySet()?.forEach { key ->
+           Log.d("SESSION_FLOW", "  Extra $key = ${intent.extras?.get(key)}")
+       }
 
 
        loadSessionConfigFromIntent()
@@ -130,6 +138,9 @@ class PresageTestActivity : AppCompatActivity() {
 
    private fun loadSessionConfigFromIntent() {
        sessionId = (intent.getStringExtra("session_id") ?: "").trim()
+       if (sessionId.isBlank()) {
+           Log.w("SESSION_FLOW", "WARNING: sessionId ('session_id') is missing from intent!")
+       }
        durationSeconds = intent.getIntExtra("duration_seconds", 60)
        startBufferMs = intent.getIntExtra("start_buffer_ms", 1500)
        stopBufferMs = intent.getIntExtra("stop_buffer_ms", 1500)
@@ -386,6 +397,11 @@ class PresageTestActivity : AppCompatActivity() {
        sessionSaved = true
 
 
+       if (sessionId.isBlank()) {
+           Log.e("SESSION_UPLOAD", "ABORT: sessionId is empty. Cannot upload.")
+       }
+
+
        val export = SessionExport(
            sessionId = sessionId,
            deviceTimeZone = TimeZone.getDefault().id,
@@ -503,6 +519,9 @@ class PresageTestActivity : AppCompatActivity() {
                "Status: ready | duration=${durationSeconds}s | startBuffer=${startBufferMs}ms | stopBuffer=${stopBufferMs}ms | capture=${maxSeconds}s"
            pulseText.text = "Pulse: --"
            breathingText.text = "Breathing: --"
+           try {
+               sessionIdText.text = "Session: $sessionId"
+           } catch (e: Exception) {}
        }
 
 
