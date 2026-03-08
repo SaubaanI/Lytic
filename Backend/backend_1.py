@@ -179,13 +179,59 @@ def analyze_engagement(video_text, biometrics):
         Viewer biometrics:
         {biometrics}
 
-        Tasks:
-        1. Identify engaging moments
-        2. Correlate biometrics with video events
-        3. Rate hook, clarity, pacing, CTA
-        4. Suggest improvements
+        Return VALID JSON in following format.
+        {
+        "overallScore": 87,
+        "hookScore": 8,
+        "clarityScore": 7,
+        "pacingScore": 6,
+        "ctaScore": 7,
 
-        Return VALID JSON.
+        "strongMoments": [
+            {
+            "timestamp": "3.0-5.5",
+            "description": "Product reveal with bold text overlay",
+            "reason": "Viewer engagement increased sharply during this moment"
+            }
+        ],
+
+        "weakMoments": [
+            {
+            "timestamp": "10.0-13.0",
+            "description": "Extended product demo",
+            "reason": "Viewer engagement dropped and pacing slowed"
+            }
+        ],
+
+        "strongPoints": [
+            "Clear product reveal",
+            "Strong emotional hook in opening line"
+        ],
+
+        "lowPoints": [
+            "Middle section pacing slows down",
+            "Call-to-action lacks urgency"
+        ],
+
+        "suggestions": [
+            "Shorten the product demo by 2–3 seconds",
+            "Add a stronger CTA phrase near the end",
+            "Introduce branding earlier in the ad"
+        ],
+
+        "engagementTimeline": [
+            {
+            "timestamp": 0.5,
+            "engagementScore": 0.52
+            },
+            {
+            "timestamp": 1.0,
+            "engagementScore": 0.61
+            }
+        ],
+
+        "keyInsight": "Viewer engagement peaks during the product reveal, suggesting the ad's strongest element is the visual introduction of the product."
+        }
         """,
         config={
         "response_mime_type": "application/json"
