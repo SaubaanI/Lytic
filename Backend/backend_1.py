@@ -16,20 +16,20 @@ metrics_json = {
     "1.0": {"pulseRate": 74, "breathingRate": 13.4, "engagement": 0.7},
     "2.0": {"pulseRate": 73, "breathingRate": 13, "engagement": 0.6},
     "3.0": {"pulseRate": 74, "breathingRate": 13.4, "engagement": 0.7},
-    "4.0": {"pulseRate": 78, "breathingRate": 15, "engagement": 0.7},
-    "5.0": {"pulseRate": 86, "breathingRate": 19, "engagement": 0.9},
-    "6.0": {"pulseRate": 88, "breathingRate": 15, "engagement": 0.6},
-    "7.0": {"pulseRate": 88, "breathingRate": 13.4, "engagement": 0.7},
-    "8.0": {"pulseRate": 84, "breathingRate": 13, "engagement": 0.6},
-    "9.0": {"pulseRate": 78, "breathingRate": 13.4, "engagement": 0.7},
-    "10.0": {"pulseRate": 74, "breathingRate": 13, "engagement": 0.6},
+    "4.0": {"pulseRate": 95, "breathingRate": 15, "engagement": 0.7},
+    "5.0": {"pulseRate": 120, "breathingRate": 19, "engagement": 0.9},
+    "6.0": {"pulseRate": 97, "breathingRate": 15, "engagement": 0.6},
+    "7.0": {"pulseRate": 74, "breathingRate": 13.4, "engagement": 0.7},
+    "8.0": {"pulseRate": 73, "breathingRate": 13, "engagement": 0.6},
+    "9.0": {"pulseRate": 74, "breathingRate": 13.4, "engagement": 0.7},
+    "10.0": {"pulseRate": 73, "breathingRate": 13, "engagement": 0.6},
     "11.0": {"pulseRate": 73, "breathingRate": 13, "engagement": 0.6},
     "12.0": {"pulseRate": 74, "breathingRate": 13.4, "engagement": 0.7},
-    "13.0": {"pulseRate": 71, "breathingRate": 13, "engagement": 0.6},
+    "13.0": {"pulseRate": 73, "breathingRate": 13, "engagement": 0.6},
     "14.0": {"pulseRate": 74, "breathingRate": 13.4, "engagement": 0.7},
-    "15.0": {"pulseRate": 80, "breathingRate": 15, "engagement": 0.7},
-    "16.0": {"pulseRate": 82, "breathingRate": 19, "engagement": 0.9},
-    "17.0": {"pulseRate": 86, "breathingRate": 15, "engagement": 0.6}
+    "15.0": {"pulseRate": 95, "breathingRate": 15, "engagement": 0.7},
+    "16.0": {"pulseRate": 120, "breathingRate": 19, "engagement": 0.9},
+    "17.0": {"pulseRate": 97, "breathingRate": 15, "engagement": 0.6}
 }
 
 api_key = os.getenv("GEMINI_API_KEY")
@@ -117,7 +117,7 @@ async def start_analysis(payload: dict):
     try:
         uploaded_file = upload_video(file_path)
         video_text = get_video_understanding(uploaded_file)
-        session_id = uuid.uuid4()
+        session_id = str(uuid.uuid4())
         dur = get_video_duration(file_path)
         sessions[session_id] = {
             "ad_id": ad_id,
@@ -127,15 +127,36 @@ async def start_analysis(payload: dict):
             "stop_buffer_ms": 1500,
             "video_text": video_text,
             "status": "collecting",
-            "final_analysis": None
+            "final_analysis": None,
+            "raw_metrics": None
         }
-        return
+        return {
+            "session_id": session_id,
+            "ad_id": ad_id,
+            "duration_seconds": dur,
+            "start_buffer_ms": 1500,
+            "stop_buffer_ms": 1500,
+            "status": "collecting"
+        }
 
     except Exception as e:
         import traceback
         traceback.print_exc()
         print(f"Analysis failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/analysis/result/{session_id}")
+async def get_result(session_id: str):
+
+    if session_id not in sessions:
+        raise HTTPException(status_code=404, detail="session not found")
+
+    session = sessions[session_id]
+
+    return {
+        "status": session["status"],
+        "result": session.get("final_analysis")
+    }
 
 def upload_video(video_file: Path):
     uploaded = client.files.upload(file=str(video_file))
@@ -227,7 +248,7 @@ def get_video_duration(video_path: Path):
     clip.close()
     return duration
 
-class SessionMetric(BaseModel):
+class MetricPoint(BaseModel):
     timestampMs: int
     pulseRate: Optional[float] = None
     pulseConfidence: Optional[float] = None
@@ -235,11 +256,42 @@ class SessionMetric(BaseModel):
     breathingConfidence: Optional[float] = None
 
 class SessionExport(BaseModel):
+    sessionId: str
     adId: str
     deviceTimeZone: str
-    metrics: List[SessionMetric]
+    metrics: List[MetricPoint]
 
 @app.post("/session")
 async def receive_session(session: SessionExport):
-    print(session.model_dump_json(indent = 2))
-    return {"ok": True, "message": "session received"}
+    session_id = session.sessionId
+
+    if session_id not in sessions:
+        raise HTTPException(status_code=404, detail="session not found")
+
+    if sessions[session_id]["ad_id"] != session.adId:
+        raise HTTPException(status_code=400, detail="adId does not match session")
+
+    sessions[session_id]["status"] = "processing"
+
+    biometrics = {
+        timestamp: metric.model_dump()
+        for timestamp, metric in session.metrics.items()
+    }
+
+    sessions[session_id]["raw_metrics"] = biometrics
+
+    try:
+        video_text = sessions[session_id]["video_text"]
+        final_analysis = analyze_engagement(video_text, biometrics)
+        sessions[session_id]["final_analysis"] = final_analysis
+        sessions[session_id]["status"] = "complete"
+
+        return {
+            "ok": True,
+            "message": "session received",
+            "status": "complete"
+        }
+
+    except Exception as e:
+        sessions[session_id]["status"] = "error"
+        raise HTTPException(status_code=500, detail=str(e))
