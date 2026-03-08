@@ -148,7 +148,7 @@ async def start_analysis(payload: dict):
 async def get_result(session_id: str):
 
     if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="session not found")
+        raise HTTPException(status_code=404, detail="session not found1")
 
     session = sessions[session_id]
 
@@ -160,7 +160,7 @@ async def get_result(session_id: str):
 @app.get("/session/config/{session_id}")
 async def get_session_config(session_id: str):
     if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="session not found")
+        raise HTTPException(status_code=404, detail="session not found2")
     
     session = sessions[session_id]
     return {
@@ -278,7 +278,7 @@ async def receive_session(session: SessionExport):
     session_id = session.sessionId
 
     if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="session not found")
+        raise HTTPException(status_code=404, detail="session not found3")
 
     sessions[session_id]["status"] = "processing"
 
