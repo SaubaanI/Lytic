@@ -53,6 +53,7 @@ app.mount("/Uploads", StaticFiles(directory="Uploads"), name="uploads")
 
 sessions = {}
 uploaded_ads = {}
+latest_session_id = None
 
 # Pre-populate `uploaded_ads` from existing files in UPLOAD_DIR on startup
 if UPLOAD_DIR.exists():
@@ -130,6 +131,9 @@ async def start_analysis(payload: dict):
             "final_analysis": None,
             "raw_metrics": None
         }
+        global latest_session_id
+        latest_session_id = session_id
+        
         return {
             "session_id": session_id,
             "duration_seconds": dur,
@@ -269,16 +273,21 @@ class MetricPoint(BaseModel):
     breathingConfidence: Optional[float] = None
 
 class SessionExport(BaseModel):
-    sessionId: str
+    sessionId: Optional[str] = None
     deviceTimeZone: str
     metrics: List[MetricPoint]
 
 @app.post("/session")
 async def receive_session(session: SessionExport):
     session_id = session.sessionId
+    
+    if not session_id:
+        print(f"No session_id in payload, falling back to latest: '{latest_session_id}'")
+        session_id = latest_session_id
+
     print(f"Received session upload request for ID: '{session_id}'")
 
-    if session_id not in sessions:
+    if not session_id or session_id not in sessions:
         print(f"ERROR: Session '{session_id}' not found. Available sessions: {list(sessions.keys())}")
         raise HTTPException(status_code=404, detail="session not found3")
 
