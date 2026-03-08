@@ -28,8 +28,6 @@ class PresageTestActivity : AppCompatActivity() {
 
    // Biometric upload endpoint
    private var uploadUrl = "https://gesticulatory-unenvious-sharonda.ngrok-free.dev/session"
-
-
    private val apiKey = "g9DATUpRNc3K66UrRtSYt2KG0isRSzts2TWGPC84"
 
 
@@ -60,8 +58,6 @@ class PresageTestActivity : AppCompatActivity() {
 
 
    private var finishRunnable: Runnable? = null
-
-
    private val sessionMetrics = mutableListOf<MetricPoint>()
    private val secondToReading = mutableMapOf<Int, MetricPoint>()
 
@@ -82,35 +78,52 @@ class PresageTestActivity : AppCompatActivity() {
    )
 
 
-   private val smartSpectraSdk: SmartSpectraSdk = SmartSpectraSdk.getInstance().apply {
-       setApiKey(apiKey)
-       setSmartSpectraMode(SmartSpectraMode.CONTINUOUS)
-
-
-       setMetricsBufferObserver { metricsBuffer ->
-           handleMetricsBuffer(metricsBuffer)
-       }
-   }
+   private var smartSpectraSdk: SmartSpectraSdk? = null
 
 
    override fun onCreate(savedInstanceState: Bundle?) {
        super.onCreate(savedInstanceState)
-       setContentView(R.layout.activity_presage_test)
+       
+       try {
+           setContentView(R.layout.activity_presage_test)
 
 
-       smartSpectraView = findViewById(R.id.smart_spectra_view)
-       statusText = findViewById(R.id.status_text)
-       pulseText = findViewById(R.id.pulse_text)
-       breathingText = findViewById(R.id.breathing_text)
+           smartSpectraView = findViewById(R.id.smart_spectra_view)
+           statusText = findViewById(R.id.status_text)
+           pulseText = findViewById(R.id.pulse_text)
+           breathingText = findViewById(R.id.breathing_text)
 
 
-       recalculateCaptureWindow()
-       resetSession()
+           recalculateCaptureWindow()
+           resetSession()
 
 
-       Log.d("SESSION_FLOW", "Activity created (Simplified Flow)")
-       Log.d("SESSION_FLOW", "SmartSpectra mode = CONTINUOUS")
-       Log.d("SESSION_UPLOAD", "uploadUrl = $uploadUrl")
+           // CRITICAL: Initialize SDK *after* views are linked to avoid UninitializedPropertyAccessException
+           initSdk()
+
+
+           Log.d("SESSION_FLOW", "Activity created (Simplified Flow)")
+           Log.d("SESSION_FLOW", "SmartSpectra mode = CONTINUOUS")
+           Log.d("SESSION_UPLOAD", "uploadUrl = $uploadUrl")
+       } catch (e: Exception) {
+           Log.e("SESSION_FLOW", "CRITICAL ERROR in onCreate: ${e.message}", e)
+       }
+   }
+
+
+   private fun initSdk() {
+       try {
+           smartSpectraSdk = SmartSpectraSdk.getInstance().apply {
+               setApiKey(apiKey)
+               setSmartSpectraMode(SmartSpectraMode.CONTINUOUS)
+               setMetricsBufferObserver { metricsBuffer ->
+                   handleMetricsBuffer(metricsBuffer)
+               }
+           }
+           Log.d("SESSION_FLOW", "SmartSpectraSdk Initialized")
+       } catch (e: Exception) {
+           Log.e("SESSION_FLOW", "Failed to initialize SmartSpectraSdk: ${e.message}", e)
+       }
    }
 
 
@@ -125,10 +138,7 @@ class PresageTestActivity : AppCompatActivity() {
 
 
    private fun handleMetricsBuffer(metrics: MetricsBuffer) {
-       if (sessionSaved) {
-           Log.d("SESSION_FLOW", "Ignoring metrics because session already saved")
-           return
-       }
+       if (sessionSaved) return
 
 
        val latestPulse = metrics.pulse.rateList.lastOrNull()
@@ -141,14 +151,12 @@ class PresageTestActivity : AppCompatActivity() {
        val breathingConfidence = latestBreathing?.confidence
 
 
-       val hasUsefulData =
-           pulseRate != null ||
-                   pulseConfidence != null ||
-                   breathingRate != null ||
-                   breathingConfidence != null
+       val hasUsefulData = pulseRate != null || pulseConfidence != null ||
+                           breathingRate != null || breathingConfidence != null
 
 
        runOnUiThread {
+           // If hasUsefulData, show real values, else show --
            if (hasUsefulData) {
                pulseText.text = "Pulse: ${pulseRate ?: "--"}"
                breathingText.text = "Breathing: ${breathingRate ?: "--"}"
@@ -170,16 +178,10 @@ class PresageTestActivity : AppCompatActivity() {
 
            sessionClockStarted = true
            sessionClockStartMs = System.currentTimeMillis()
-
-
            val totalRunMs = startBufferMs.toLong() + captureWindowMs
 
 
-           Log.d(
-               "SESSION_FLOW",
-               "First real measurement received. " +
-                       "Session clock started. totalRunMs=$totalRunMs"
-           )
+           Log.d("SESSION_FLOW", "First real measurement received. totalRunMs=$totalRunMs")
 
 
            finishRunnable = Runnable {
@@ -191,49 +193,22 @@ class PresageTestActivity : AppCompatActivity() {
 
 
        val totalElapsedMs = System.currentTimeMillis() - sessionClockStartMs
-
-
-       // Still inside start buffer, do not capture yet
        if (totalElapsedMs < startBufferMs) {
            val remaining = startBufferMs - totalElapsedMs
            runOnUiThread {
                statusText.text = "Status: waiting start buffer (${remaining}ms left)"
            }
-           Log.d("SESSION_CAPTURE", "Inside start buffer, skipping capture")
            return
        }
 
 
        val captureElapsedMs = totalElapsedMs - startBufferMs
-
-
-       if (captureElapsedMs >= captureWindowMs) {
-           Log.d("SESSION_CAPTURE", "Past capture window, ignoring callback")
-           return
-       }
+       if (captureElapsedMs >= captureWindowMs) return
 
 
        val tSec = (captureElapsedMs / 1000L).toInt()
-
-
-       if (tSec !in 0 until maxSeconds) {
-           Log.d("SESSION_CAPTURE", "Ignoring callback outside valid second window: tSec=$tSec")
-           return
-       }
-
-
-       if (!hasUsefulData) {
-           Log.d("SESSION_CAPTURE", "No useful data at tSec=$tSec")
-           return
-       }
-
-
-       Log.d(
-           "PRESAGE_RAW",
-           "tSec=$tSec " +
-                   "pulse=$pulseRate pulseConf=$pulseConfidence " +
-                   "breathing=$breathingRate breathingConf=$breathingConfidence"
-       )
+       if (tSec !in 0 until maxSeconds) return
+       if (!hasUsefulData) return
 
 
        secondToReading[tSec] = MetricPoint(
@@ -245,14 +220,6 @@ class PresageTestActivity : AppCompatActivity() {
        )
 
 
-       Log.d(
-           "SESSION_CAPTURE",
-           "Captured reading for sec=$tSec/$maxSeconds " +
-                   "pulse=$pulseRate pulseConf=$pulseConfidence " +
-                   "breathing=$breathingRate breathingConf=$breathingConfidence"
-       )
-
-
        runOnUiThread {
            statusText.text = "Status: measuring second ${tSec + 1}/$maxSeconds"
        }
@@ -261,15 +228,11 @@ class PresageTestActivity : AppCompatActivity() {
 
    private fun buildFinalMetrics() {
        sessionMetrics.clear()
-
-
        var lastKnownMetric: MetricPoint? = null
 
 
        for (sec in 0 until maxSeconds) {
            val metricForThisSecond = secondToReading[sec]
-
-
            val finalMetric = when {
                metricForThisSecond != null -> {
                    lastKnownMetric = metricForThisSecond
@@ -285,37 +248,16 @@ class PresageTestActivity : AppCompatActivity() {
                    )
                }
                else -> {
-                   MetricPoint(
-                       timestampMs = sec * 1000,
-                       pulseRate = null,
-                       pulseConfidence = null,
-                       breathingRate = null,
-                       breathingConfidence = null
-                   )
+                   MetricPoint(timestampMs = sec * 1000)
                }
            }
-
-
            sessionMetrics.add(finalMetric)
-
-
-           Log.d(
-               "SESSION_FINAL",
-               "sec=${finalMetric.timestampMs} " +
-                       "pulse=${finalMetric.pulseRate} pulseConf=${finalMetric.pulseConfidence} " +
-                       "breathing=${finalMetric.breathingRate} breathingConf=${finalMetric.breathingConfidence}"
-           )
        }
    }
 
 
    private fun saveSessionToJsonFile() {
-       if (sessionSaved) {
-           Log.d("SESSION_JSON", "saveSessionToJsonFile skipped because already saved")
-           return
-       }
-
-
+       if (sessionSaved) return
        sessionSaved = true
 
 
@@ -326,24 +268,12 @@ class PresageTestActivity : AppCompatActivity() {
        )
 
 
-       val gson = GsonBuilder()
-           .serializeNulls()
-           .setPrettyPrinting()
-           .create()
-
-
-       val json = gson.toJson(export)
-
-
+       val json = GsonBuilder().serializeNulls().setPrettyPrinting().create().toJson(export)
        val file = File(filesDir, "session_${System.currentTimeMillis()}.json")
        file.writeText(json)
 
 
-       Log.d("SESSION_JSON", "SAVING NOW")
-       Log.d("SESSION_JSON", json)
        Log.d("SESSION_JSON", "Saved to: ${file.absolutePath}")
-
-
        uploadSessionJson(json)
 
 
@@ -354,23 +284,14 @@ class PresageTestActivity : AppCompatActivity() {
 
 
    private fun uploadSessionJson(json: String) {
-       Log.d("SESSION_UPLOAD", "Starting upload to $uploadUrl")
-
-
        val requestBody = json.toRequestBody("application/json".toMediaType())
-
-
-       val request = Request.Builder()
-           .url(uploadUrl)
-           .post(requestBody)
-           .build()
+       val request = Request.Builder().url(uploadUrl).post(requestBody).build()
 
 
        Thread {
            try {
                httpClient.newCall(request).execute().use { response ->
-                   val responseBody = response.body?.string()
-                   Log.d("SESSION_UPLOAD", "code=${response.code} body=$responseBody")
+                   Log.d("SESSION_UPLOAD", "code=${response.code} body=${response.body?.string()}")
                }
            } catch (e: Exception) {
                Log.e("SESSION_UPLOAD", "Upload failed: ${e.message}", e)
@@ -380,26 +301,17 @@ class PresageTestActivity : AppCompatActivity() {
 
 
    private fun finishSession() {
-       if (sessionSaved) {
-           Log.d("SESSION_FLOW", "finishSession skipped because already saved")
-           return
-       }
-
-
+       if (sessionSaved) return
        Log.d("SESSION_FLOW", "Finishing session")
 
 
        try {
            finishRunnable?.let { mainHandler.removeCallbacks(it) }
            finishRunnable = null
-       } catch (e: Exception) {
-           Log.e("SESSION_FLOW", "Failed removing finish runnable: ${e.message}", e)
-       }
+       } catch (e: Exception) {}
 
 
        buildFinalMetrics()
-
-
        runOnUiThread {
            statusText.text = "Status: finishing session"
        }
@@ -407,9 +319,7 @@ class PresageTestActivity : AppCompatActivity() {
 
        try {
            smartSpectraView.visibility = View.GONE
-       } catch (e: Exception) {
-           Log.e("SESSION_FLOW", "Failed hiding SmartSpectraView: ${e.message}", e)
-       }
+       } catch (e: Exception) {}
 
 
        saveSessionToJsonFile()
@@ -420,8 +330,6 @@ class PresageTestActivity : AppCompatActivity() {
        sessionSaved = false
        sessionClockStarted = false
        sessionClockStartMs = 0L
-
-
        sessionMetrics.clear()
        secondToReading.clear()
 
@@ -432,29 +340,17 @@ class PresageTestActivity : AppCompatActivity() {
 
        runOnUiThread {
            smartSpectraView.visibility = View.VISIBLE
-           statusText.text =
-               "Status: ready | duration=${durationSeconds}s | startBuffer=${startBufferMs}ms | stopBuffer=${stopBufferMs}ms | capture=${maxSeconds}s"
+           statusText.text = "Status: ready | duration=${durationSeconds}s | capture=${maxSeconds}s"
            pulseText.text = "Pulse: --"
            breathingText.text = "Breathing: --"
        }
-
-
-       Log.d(
-           "SESSION_FLOW",
-           "resetSession durationSeconds=$durationSeconds " +
-                   "startBufferMs=$startBufferMs stopBufferMs=$stopBufferMs maxSeconds=$maxSeconds"
-       )
    }
 
 
    override fun onDestroy() {
        super.onDestroy()
-
-
        finishRunnable?.let { mainHandler.removeCallbacks(it) }
        finishRunnable = null
-
-
        Log.d("SESSION_FLOW", "Activity destroyed")
    }
 }
