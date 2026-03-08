@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+moviepy
+google-genai
+pydantic
+python-multipart

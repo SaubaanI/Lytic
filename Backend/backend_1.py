@@ -16,20 +16,20 @@ metrics_json = {
     "1.0": {"pulseRate": 74, "breathingRate": 13.4, "engagement": 0.7},
     "2.0": {"pulseRate": 73, "breathingRate": 13, "engagement": 0.6},
     "3.0": {"pulseRate": 74, "breathingRate": 13.4, "engagement": 0.7},
-    "4.0": {"pulseRate": 95, "breathingRate": 15, "engagement": 0.7},
-    "5.0": {"pulseRate": 120, "breathingRate": 19, "engagement": 0.9},
-    "6.0": {"pulseRate": 97, "breathingRate": 15, "engagement": 0.6},
-    "7.0": {"pulseRate": 74, "breathingRate": 13.4, "engagement": 0.7},
-    "8.0": {"pulseRate": 73, "breathingRate": 13, "engagement": 0.6},
-    "9.0": {"pulseRate": 74, "breathingRate": 13.4, "engagement": 0.7},
-    "10.0": {"pulseRate": 73, "breathingRate": 13, "engagement": 0.6},
+    "4.0": {"pulseRate": 78, "breathingRate": 15, "engagement": 0.7},
+    "5.0": {"pulseRate": 86, "breathingRate": 19, "engagement": 0.9},
+    "6.0": {"pulseRate": 88, "breathingRate": 15, "engagement": 0.6},
+    "7.0": {"pulseRate": 88, "breathingRate": 13.4, "engagement": 0.7},
+    "8.0": {"pulseRate": 84, "breathingRate": 13, "engagement": 0.6},
+    "9.0": {"pulseRate": 78, "breathingRate": 13.4, "engagement": 0.7},
+    "10.0": {"pulseRate": 74, "breathingRate": 13, "engagement": 0.6},
     "11.0": {"pulseRate": 73, "breathingRate": 13, "engagement": 0.6},
     "12.0": {"pulseRate": 74, "breathingRate": 13.4, "engagement": 0.7},
-    "13.0": {"pulseRate": 73, "breathingRate": 13, "engagement": 0.6},
+    "13.0": {"pulseRate": 71, "breathingRate": 13, "engagement": 0.6},
     "14.0": {"pulseRate": 74, "breathingRate": 13.4, "engagement": 0.7},
-    "15.0": {"pulseRate": 95, "breathingRate": 15, "engagement": 0.7},
-    "16.0": {"pulseRate": 120, "breathingRate": 19, "engagement": 0.9},
-    "17.0": {"pulseRate": 97, "breathingRate": 15, "engagement": 0.6}
+    "15.0": {"pulseRate": 80, "breathingRate": 15, "engagement": 0.7},
+    "16.0": {"pulseRate": 82, "breathingRate": 19, "engagement": 0.9},
+    "17.0": {"pulseRate": 86, "breathingRate": 15, "engagement": 0.6}
 }
 
 api_key = os.getenv("GEMINI_API_KEY")
