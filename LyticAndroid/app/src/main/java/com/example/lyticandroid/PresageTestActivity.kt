@@ -129,7 +129,7 @@ class PresageTestActivity : AppCompatActivity() {
 
 
    private fun loadSessionConfigFromIntent() {
-       sessionId = intent.getStringExtra("session_id") ?: ""
+       sessionId = (intent.getStringExtra("session_id") ?: "").trim()
        durationSeconds = intent.getIntExtra("duration_seconds", 60)
        startBufferMs = intent.getIntExtra("start_buffer_ms", 1500)
        stopBufferMs = intent.getIntExtra("stop_buffer_ms", 1500)

@@ -276,8 +276,10 @@ class SessionExport(BaseModel):
 @app.post("/session")
 async def receive_session(session: SessionExport):
     session_id = session.sessionId
+    print(f"Received session upload request for ID: '{session_id}'")
 
     if session_id not in sessions:
+        print(f"ERROR: Session '{session_id}' not found. Available sessions: {list(sessions.keys())}")
         raise HTTPException(status_code=404, detail="session not found3")
 
     sessions[session_id]["status"] = "processing"
