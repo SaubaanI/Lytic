@@ -1,5 +1,3 @@
-
-
 package com.example.lyticandroid
 
 
@@ -29,7 +27,8 @@ class PresageTestActivity : AppCompatActivity() {
 
 
    // Change this to your real endpoint that receives final Android biometric payload
-   private val uploadUrl = "https://gesticulatory-unenvious-sharonda.ngrok-free.dev/session"
+   private var uploadUrl = "https://gesticulatory-unenvious-sharonda.ngrok-free.dev/session"
+   private var configUrl = "https://gesticulatory-unenvious-sharonda.ngrok-free.dev/session/config/"
 
 
    private val apiKey = "g9DATUpRNc3K66UrRtSYt2KG0isRSzts2TWGPC84"
@@ -52,7 +51,6 @@ class PresageTestActivity : AppCompatActivity() {
 
    // These now come dynamically from frontend/backend
    private var sessionId: String = ""
-   private var adId: String = "test_ad_001"
    private var durationSeconds: Int = 60
    private var startBufferMs: Int = 1500
    private var stopBufferMs: Int = 1500
@@ -66,11 +64,11 @@ class PresageTestActivity : AppCompatActivity() {
    private var finishRunnable: Runnable? = null
 
 
-   private val sessionMetrics = mutableListOf<SessionMetric>()
-   private val secondToReading = mutableMapOf<Int, SessionMetric>()
+   private val sessionMetrics = mutableListOf<MetricPoint>()
+   private val secondToReading = mutableMapOf<Int, MetricPoint>()
 
 
-   data class SessionMetric(
+   data class MetricPoint(
        val timestampMs: Int,
        val pulseRate: Float? = null,
        val pulseConfidence: Float? = null,
@@ -81,9 +79,8 @@ class PresageTestActivity : AppCompatActivity() {
 
    data class SessionExport(
        val sessionId: String,
-       val adId: String,
        val deviceTimeZone: String,
-       val metrics: List<SessionMetric>
+       val metrics: List<MetricPoint>
    )
 
 
@@ -110,8 +107,13 @@ class PresageTestActivity : AppCompatActivity() {
 
 
        loadSessionConfigFromIntent()
-       recalculateCaptureWindow()
-       resetSession(adId)
+       
+       if (sessionId.isNotBlank()) {
+           fetchSessionConfig()
+       } else {
+           recalculateCaptureWindow()
+           resetSession()
+       }
 
 
        Log.d("SESSION_FLOW", "Activity created")
@@ -119,7 +121,7 @@ class PresageTestActivity : AppCompatActivity() {
        Log.d("SESSION_UPLOAD", "uploadUrl = $uploadUrl")
        Log.d(
            "SESSION_CONFIG",
-           "sessionId=$sessionId adId=$adId durationSeconds=$durationSeconds " +
+           "sessionId=$sessionId durationSeconds=$durationSeconds " +
                    "startBufferMs=$startBufferMs stopBufferMs=$stopBufferMs " +
                    "captureWindowMs=$captureWindowMs maxSeconds=$maxSeconds"
        )
@@ -128,16 +130,54 @@ class PresageTestActivity : AppCompatActivity() {
 
    private fun loadSessionConfigFromIntent() {
        sessionId = intent.getStringExtra("session_id") ?: ""
-       adId = intent.getStringExtra("ad_id") ?: "test_ad_001"
        durationSeconds = intent.getIntExtra("duration_seconds", 60)
        startBufferMs = intent.getIntExtra("start_buffer_ms", 1500)
        stopBufferMs = intent.getIntExtra("stop_buffer_ms", 1500)
+   }
 
 
-       if (sessionId.isBlank()) {
-           // Temporary fallback for testing
-           sessionId = "local_test_session_${System.currentTimeMillis()}"
-       }
+   private fun fetchSessionConfig() {
+       Log.d("SESSION_CONFIG", "Fetching config for $sessionId from $configUrl$sessionId")
+       val request = Request.Builder()
+           .url("$configUrl$sessionId")
+           .build()
+
+
+       httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+           override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
+               Log.e("SESSION_CONFIG", "Failed to fetch config: ${e.message}")
+               runOnUiThread {
+                   statusText.text = "Status: config fetch failed"
+               }
+           }
+
+
+           override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
+               response.use {
+                   if (!it.isSuccessful) {
+                       Log.e("SESSION_CONFIG", "Config fetch unsuccessful: ${it.code}")
+                       return
+                   }
+                   val body = it.body?.string() ?: return
+                   try {
+                       val parsed = com.google.gson.JsonParser.parseString(body).asJsonObject
+                       
+                       durationSeconds = parsed.get("duration_seconds").asInt
+                       startBufferMs = parsed.get("start_buffer_ms").asInt
+                       stopBufferMs = parsed.get("stop_buffer_ms").asInt
+                       
+                       Log.d("SESSION_CONFIG", "Config received: dur=$durationSeconds start=$startBufferMs stop=$stopBufferMs")
+                       
+                       runOnUiThread {
+                           recalculateCaptureWindow()
+                           resetSession()
+                       }
+                   } catch (e: Exception) {
+                       Log.e("SESSION_CONFIG", "Error parsing config: ${e.message}")
+                   }
+               }
+           }
+       })
    }
 
 
@@ -257,14 +297,14 @@ class PresageTestActivity : AppCompatActivity() {
 
        Log.d(
            "PRESAGE_RAW",
-           "sessionId=$sessionId adId=$adId tSec=$tSec " +
+           "sessionId=$sessionId tSec=$tSec " +
                    "pulse=$pulseRate pulseConf=$pulseConfidence " +
                    "breathing=$breathingRate breathingConf=$breathingConfidence"
        )
 
 
-       secondToReading[tSec] = SessionMetric(
-           timestampMs = tSec,
+       secondToReading[tSec] = MetricPoint(
+           timestampMs = tSec * 1000,
            pulseRate = pulseRate,
            pulseConfidence = pulseConfidence,
            breathingRate = breathingRate,
@@ -290,7 +330,7 @@ class PresageTestActivity : AppCompatActivity() {
        sessionMetrics.clear()
 
 
-       var lastKnownMetric: SessionMetric? = null
+       var lastKnownMetric: MetricPoint? = null
 
 
        for (sec in 0 until maxSeconds) {
@@ -303,8 +343,8 @@ class PresageTestActivity : AppCompatActivity() {
                    metricForThisSecond
                }
                lastKnownMetric != null -> {
-                   SessionMetric(
-                       timestampMs = sec,
+                   MetricPoint(
+                       timestampMs = sec * 1000,
                        pulseRate = lastKnownMetric!!.pulseRate,
                        pulseConfidence = lastKnownMetric!!.pulseConfidence,
                        breathingRate = lastKnownMetric!!.breathingRate,
@@ -312,8 +352,8 @@ class PresageTestActivity : AppCompatActivity() {
                    )
                }
                else -> {
-                   SessionMetric(
-                       timestampMs = sec,
+                   MetricPoint(
+                       timestampMs = sec * 1000,
                        pulseRate = null,
                        pulseConfidence = null,
                        breathingRate = null,
@@ -348,7 +388,6 @@ class PresageTestActivity : AppCompatActivity() {
 
        val export = SessionExport(
            sessionId = sessionId,
-           adId = adId,
            deviceTimeZone = TimeZone.getDefault().id,
            metrics = sessionMetrics.toList()
        )
@@ -444,10 +483,7 @@ class PresageTestActivity : AppCompatActivity() {
    }
 
 
-   private fun resetSession(newAdId: String) {
-       adId = newAdId
-
-
+   private fun resetSession() {
        sessionSaved = false
        sessionClockStarted = false
        sessionClockStartMs = 0L
@@ -472,7 +508,7 @@ class PresageTestActivity : AppCompatActivity() {
 
        Log.d(
            "SESSION_FLOW",
-           "resetSession sessionId=$sessionId adId=$adId durationSeconds=$durationSeconds " +
+           "resetSession sessionId=$sessionId durationSeconds=$durationSeconds " +
                    "startBufferMs=$startBufferMs stopBufferMs=$stopBufferMs maxSeconds=$maxSeconds"
        )
    }
@@ -489,4 +525,3 @@ class PresageTestActivity : AppCompatActivity() {
        Log.d("SESSION_FLOW", "Activity destroyed")
    }
 }
-

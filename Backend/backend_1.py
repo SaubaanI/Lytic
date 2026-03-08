@@ -157,6 +157,20 @@ async def get_result(session_id: str):
         "result": session.get("final_analysis")
     }
 
+@app.get("/session/config/{session_id}")
+async def get_session_config(session_id: str):
+    if session_id not in sessions:
+        raise HTTPException(status_code=404, detail="session not found")
+    
+    session = sessions[session_id]
+    return {
+        "session_id": session_id,
+        "duration_seconds": session["duration_seconds"],
+        "start_buffer_ms": session["start_buffer_ms"],
+        "stop_buffer_ms": session["stop_buffer_ms"],
+        "status": session["status"]
+    }
+
 def upload_video(video_file: Path):
     uploaded = client.files.upload(file=str(video_file))
     while getattr(uploaded, "state", None) and uploaded.state.name == "PROCESSING":
