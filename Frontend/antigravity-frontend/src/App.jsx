@@ -4,7 +4,7 @@ import './index.css';
 const parseAnalysis = (result) => {
   if (!result) return null;
   console.log("Raw analysis result to parse:", result);
-  
+
   let parsed = result;
 
   if (typeof parsed === 'string') {
@@ -13,7 +13,7 @@ const parseAnalysis = (result) => {
       const firstBrace = cleanStr.indexOf('{');
       const lastBrace = cleanStr.lastIndexOf('}');
       if (firstBrace !== -1 && lastBrace !== -1 && lastBrace >= firstBrace) {
-          cleanStr = cleanStr.substring(firstBrace, lastBrace + 1);
+        cleanStr = cleanStr.substring(firstBrace, lastBrace + 1);
       }
       parsed = JSON.parse(cleanStr);
     } catch (e) {
@@ -23,7 +23,7 @@ const parseAnalysis = (result) => {
   }
 
   if (typeof parsed !== 'object' || parsed === null) return null;
-  
+
   // Normalize all keys to lowercase for consistent access
   const normalized = {};
   Object.keys(parsed).forEach(key => {
@@ -55,7 +55,7 @@ const AnalysisDashboard = ({ data, onBack }) => {
     <div className="analysis-results-container">
       <div className="dashboard-header">
         <button className="btn-back-home" onClick={onBack}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
           Back to Dashboard
         </button>
         <div className="dashboard-title-group">
@@ -77,8 +77,8 @@ const AnalysisDashboard = ({ data, onBack }) => {
                   cy="100"
                   r={radius}
                   className="circle-progress"
-                  style={{ 
-                    strokeDasharray: circumference, 
+                  style={{
+                    strokeDasharray: circumference,
                     strokeDashoffset: isNaN(strokeDashoffset) ? circumference : strokeDashoffset,
                     transition: 'stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1)'
                   }}
@@ -89,7 +89,7 @@ const AnalysisDashboard = ({ data, onBack }) => {
                 <span className="score-total">/100</span>
               </div>
             </div>
-            
+
             <div className="sub-metrics-grid">
               <div className="sub-metric-item">
                 <div className="sub-metric-value">{hookScore}/10</div>
@@ -113,7 +113,7 @@ const AnalysisDashboard = ({ data, onBack }) => {
           {keyInsight && (
             <div className="glass-card insight-card">
               <div className="insight-header">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></svg>
                 <h3>Strategic Insight</h3>
               </div>
               <p>{keyInsight}</p>
@@ -200,6 +200,8 @@ function App() {
   const [view, setView] = useState('home');
   const [analysisResult, setAnalysisResult] = useState(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [sessionStatus, setSessionStatus] = useState(null); // 'initializing', 'collecting', 'processing', 'complete', 'error'
+  const [sessionId, setSessionId] = useState(null);
 
   const fetchVideos = async () => {
     try {
@@ -256,132 +258,177 @@ function App() {
   return (
     <div className="app-container">
       {view === 'home' && (
-      <main className="content-wrapper">
-        <div className="logo-container">
-          <h1 className="logo-text">
-            Lytic<span className="logo-accent">.</span>
-          </h1>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
-          <input
-            type="file"
-            accept=".mp4"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            style={{ display: 'none' }}
-          />
-
-          <button className="btn-upload" onClick={handleUploadClick} disabled={uploading}>
-            <svg
-              className="upload-icon"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-            </svg>
-            {uploading ? 'Uploading... ' : 'Upload'}
-          </button>
-
-          <button className="btn-secondary" onClick={toggleVideoList}>
-            <svg
-              className="upload-icon"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
-            {showVideos ? 'Hide Videos' : 'Select Video'}
-          </button>
-        </div>
-        {message && <p style={{ marginTop: '20px' }}>{message}</p>}
-
-        {showVideos && (
-          <div className="video-section">
-            <h3 className="section-title">Uploaded Videos</h3>
-            {videos.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)' }}>No videos found in Uploads folder.</p>
-            ) : (
-              <>
-                <div className="video-grid">
-                  {videos.map(video => (
-                    <div
-                      key={video.id}
-                      className={`video-card ${selectedVideo === video.id ? 'selected' : ''}`}
-                      onClick={() => setSelectedVideo(video.id)}
-                    >
-                      <div className="video-thumbnail">
-                        <video src={video.url} preload="metadata" muted playsInline disablePictureInPicture className="thumbnail-player" />
-                        <svg className="play-icon" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <div className="video-info">
-                        <div className="video-title">{video.name}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div style={{ marginTop: '2rem', textAlign: 'center' }}>
-                  <button
-                    className="btn-analyze"
-                    disabled={!selectedVideo}
-                    onClick={async () => {
-                      setView('analysis');
-                      setAnalysisResult(null);
-                      setAnalysisLoading(true);
-                      try {
-                        const ad_id = selectedVideo.split('_')[0];
-                        const response = await fetch('http://127.0.0.1:8000/analysis/start', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ ad_id })
-                        });
-                        const data = await response.json();
-                        setAnalysisResult(data);
-                      } catch (error) {
-                        console.error('Failed to start analysis:', error);
-                      } finally {
-                        setAnalysisLoading(false);
-                      }
-                    }}
-                  >
-                    <svg className="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                    Analyze
-                  </button>
-                </div>
-              </>
-            )}
+        <main className="content-wrapper">
+          <div className="logo-container">
+            <h1 className="logo-text">
+              Lytic<span className="logo-accent">.</span>
+            </h1>
           </div>
-        )}
-      </main>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
+            <input
+              type="file"
+              accept=".mp4"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              style={{ display: 'none' }}
+            />
+
+            <button className="btn-upload" onClick={handleUploadClick} disabled={uploading}>
+              <svg
+                className="upload-icon"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+              {uploading ? 'Uploading... ' : 'Upload'}
+            </button>
+
+            <button className="btn-secondary" onClick={toggleVideoList}>
+              <svg
+                className="upload-icon"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              {showVideos ? 'Hide Videos' : 'Select Video'}
+            </button>
+          </div>
+          {message && <p style={{ marginTop: '20px' }}>{message}</p>}
+
+          {showVideos && (
+            <div className="video-section">
+              <h3 className="section-title">Uploaded Videos</h3>
+              {videos.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)' }}>No videos found in Uploads folder.</p>
+              ) : (
+                <>
+                  <div className="video-grid">
+                    {videos.map(video => (
+                      <div
+                        key={video.id}
+                        className={`video-card ${selectedVideo === video.id ? 'selected' : ''}`}
+                        onClick={() => setSelectedVideo(video.id)}
+                      >
+                        <div className="video-thumbnail">
+                          <video src={video.url} preload="metadata" muted playsInline disablePictureInPicture className="thumbnail-player" />
+                          <svg className="play-icon" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="video-info">
+                          <div className="video-title">{video.name}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+                    <button
+                      className="btn-analyze"
+                      disabled={!selectedVideo}
+                      onClick={async () => {
+                        setView('analysis');
+                        setAnalysisResult(null);
+                        setSessionStatus('initializing');
+                        setAnalysisLoading(true);
+
+                        try {
+                          const ad_id = selectedVideo.split('_')[0];
+                          const response = await fetch('http://127.0.0.1:8000/analysis/start', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ ad_id })
+                          });
+
+                          const initData = await response.json();
+                          if (!response.ok) throw new Error(initData.detail || 'Failed to start analysis');
+
+                          setSessionId(initData.session_id);
+                          setSessionStatus(initData.status);
+
+                          // Start Polling
+                          const pollInterval = setInterval(async () => {
+                            try {
+                              const pollRes = await fetch(`http://127.0.0.1:8000/analysis/result/${initData.session_id}`);
+                              const pollData = await pollRes.json();
+
+                              if (pollData.status === 'complete' && pollData.result) {
+                                setAnalysisResult(pollData.result);
+                                setSessionStatus('complete');
+                                setAnalysisLoading(false);
+                                clearInterval(pollInterval);
+                              } else if (pollData.status === 'error') {
+                                setSessionStatus('error');
+                                setAnalysisLoading(false);
+                                clearInterval(pollInterval);
+                              } else {
+                                setSessionStatus(pollData.status);
+                              }
+                            } catch (err) {
+                              console.error('Polling error:', err);
+                            }
+                          }, 3000);
+
+                        } catch (error) {
+                          console.error('Failed to start analysis:', error);
+                          setSessionStatus('error');
+                          setAnalysisLoading(false);
+                        }
+                      }}
+                    >
+                      <svg className="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      Analyze
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </main>
       )}
 
       {view === 'analysis' && (
         <main className="content-wrapper analysis-view">
           <div className="analysis-video-container">
             {selectedVideo && (
-              <video 
-                src={videos.find(v => v.id === selectedVideo)?.url.split('#')[0]} 
-                controls 
+              <video
+                src={videos.find(v => v.id === selectedVideo)?.url.split('#')[0]}
+                controls
                 autoPlay
                 className="analysis-video-player"
               />
             )}
           </div>
-          
+
           <div style={{ marginTop: '2rem', width: '100%', maxWidth: '1200px', margin: '0 auto', color: 'var(--text-color)' }}>
             {analysisLoading && (
               <div className="loading-container">
                 <div className="shimmer-loader"></div>
-                <p>Analyzing video engagement...</p>
+                <div className="session-status">
+                  <span className={`status-badge ${sessionStatus}`}>{sessionStatus?.toUpperCase()}</span>
+                  <p>
+                    {sessionStatus === 'initializing' && "Initializing video understanding..."}
+                    {sessionStatus === 'collecting' && "Ready! Please start biometric collection on your mobile device."}
+                    {sessionStatus === 'processing' && "Biometrics received. Generating final analysis..."}
+                  </p>
+                  {sessionId && <p className="session-id-display">Session ID: <code>{sessionId}</code></p>}
+                </div>
+              </div>
+            )}
+            {sessionStatus === 'error' && (
+              <div className="error-card">
+                <h3>Analysis Error</h3>
+                <p>Something went wrong during the analysis process. Please check the server logs.</p>
+                <button className="btn-secondary" onClick={() => setView('home')}>Back to Home</button>
               </div>
             )}
             {analysisResult && (() => {
@@ -389,8 +436,8 @@ function App() {
               if (!parsedAnalysis || Object.keys(parsedAnalysis).length === 0) {
                 return (
                   <div className="error-card">
-                    <h3>Analysis Error</h3>
-                    <p>We couldn't parse the analysis results. Please try again.</p>
+                    <h3>Parsing Error</h3>
+                    <p>We received the analysis but couldn't parse it. The data may be malformed.</p>
                     <button className="btn-secondary" onClick={() => setView('home')}>Back to Home</button>
                   </div>
                 );

@@ -432,3 +432,41 @@ body {
 .error-card { text-align: center; padding: 4rem; background: #fff1f2; border-radius: 24px; border: 1px solid #fecdd3; }
 .error-card h3 { color: #e11d48; margin-bottom: 1rem; }
 .error-card p { color: #9f1239; margin-bottom: 2rem; }
+
+/* Session Status Styles */
+.session-status {
+    text-align: center;
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.status-badge {
+    padding: 0.4rem 1rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.status-badge.initializing { background: #dbeafe; color: #1e40af; }
+.status-badge.collecting { background: #fef9c3; color: #854d0e; border: 1px solid #fde047; }
+.status-badge.processing { background: #dcfce7; color: #166534; }
+.status-badge.error { background: #fee2e2; color: #991b1b; }
+
+.session-id-display {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    margin-top: 0.5rem;
+}
+
+.session-id-display code {
+    background: #f8fafc;
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+}
