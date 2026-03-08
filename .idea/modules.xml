@@ -3,6 +3,11 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/Lytic.iml" filepath="$PROJECT_DIR$/.idea/Lytic.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/LyticAndroid.iml" filepath="$PROJECT_DIR$/.idea/modules/LyticAndroid.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/LyticAndroid.app.iml" filepath="$PROJECT_DIR$/.idea/modules/app/LyticAndroid.app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/LyticAndroid.app.androidTest.iml" filepath="$PROJECT_DIR$/.idea/modules/app/LyticAndroid.app.androidTest.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/LyticAndroid.app.main.iml" filepath="$PROJECT_DIR$/.idea/modules/app/LyticAndroid.app.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/LyticAndroid.app.unitTest.iml" filepath="$PROJECT_DIR$/.idea/modules/app/LyticAndroid.app.unitTest.iml" />
     </modules>
   </component>
 </project>
