@@ -269,7 +269,12 @@ async def receive_session(session: SessionExport):
     sessions[session_id]["status"] = "processing"
 
     biometrics = {
-        str(metric.timestampMs): metric.model_dump()
+        str(metric.timestampMs): {
+            "pulseRate": metric.pulseRate,
+            "breathingRate": metric.breathingRate,
+            "pulseConfidence": metric.pulseConfidence,
+            "breathingConfidence": metric.breathingConfidence
+        }
         for metric in session.metrics
     }
 
