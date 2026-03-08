@@ -117,8 +117,19 @@ async def start_analysis(payload: dict):
     try:
         uploaded_file = upload_video(file_path)
         video_text = get_video_understanding(uploaded_file)
-        final_analysis = analyze_engagement(video_text, metrics_json)
-        return final_analysis
+        session_id = uuid.uuid4()
+        dur = get_video_duration(file_path)
+        sessions[session_id] = {
+            "ad_id": ad_id,
+            "saved_filename": saved_filename,
+            "duration_seconds": dur,
+            "start_buffer_ms": 1500,
+            "stop_buffer_ms": 1500,
+            "video_text": video_text,
+            "status": "collecting",
+            "final_analysis": None
+        }
+        return
 
     except Exception as e:
         import traceback
@@ -209,6 +220,12 @@ def analyze_engagement(video_text, biometrics):
         }
     )
     return response.text
+
+def get_video_duration(video_path: Path):
+    clip = VideoFileClip(str(video_path))
+    duration = clip.duration
+    clip.close()
+    return duration
 
 class SessionMetric(BaseModel):
     timestampMs: int
