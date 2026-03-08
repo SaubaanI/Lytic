@@ -105,7 +105,7 @@ class PresageTestActivity : AppCompatActivity() {
        statusText = findViewById(R.id.status_text)
        pulseText = findViewById(R.id.pulse_text)
        breathingText = findViewById(R.id.breathing_text)
-       sessionIdText = findViewById(android.R.id.text1) // Fallback or add to layout
+       sessionIdText = findViewById(R.id.session_id_text)
 
 
        Log.d("SESSION_FLOW", "Intent Extras Check:")

@@ -34,4 +34,13 @@
         android:textSize="18sp"
         android:paddingTop="8dp" />
 
+    <TextView
+        android:id="@+id/session_id_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Session: --"
+        android:textSize="14sp"
+        android:textColor="#888888"
+        android:paddingTop="16dp" />
+
 </LinearLayout>
