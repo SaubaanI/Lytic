@@ -1,0 +1,14 @@
+<component name="libraryTable">
+  <library name="Gradle: com.presagetech:smartspectra:1.0.26@aar" external-system-id="GRADLE">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/9.3.1/transforms/2ffb5747589a553d7d7880f1f2b27393/workspace/transformed/smartspectra-1.0.26/jars/classes.jar!/" />
+      <root url="jar://$USER_HOME$/.gradle/caches/9.3.1/transforms/2ffb5747589a553d7d7880f1f2b27393/workspace/transformed/smartspectra-1.0.26/jars/libs/classes-2.jar!/" />
+      <root url="file://$USER_HOME$/.gradle/caches/9.3.1/transforms/2ffb5747589a553d7d7880f1f2b27393/workspace/transformed/smartspectra-1.0.26/res" />
+      <root url="file://$USER_HOME$/.gradle/caches/9.3.1/transforms/2ffb5747589a553d7d7880f1f2b27393/workspace/transformed/smartspectra-1.0.26/AndroidManifest.xml" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.presagetech/smartspectra/1.0.26/ae840abb47bcdc3ffc2de18b151c5fddababd94/smartspectra-1.0.26-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES />
+  </library>
+</component>
