@@ -3,18 +3,42 @@ import './index.css';
 
 const parseAnalysis = (result) => {
   if (!result) return null;
-  if (typeof result === 'object') return result;
   
+  // If result is already an object, return it.
+  if (typeof result === 'object') return result;
+
   try {
-    let cleanStr = result.replace(/```json/g, '').replace(/```/g, '').trim();
-    return JSON.parse(cleanStr);
+    // Sometimes backend sends a JSON string inside a JSON string.
+    let parsedFirst = JSON.parse(result);
+    // If it's still a string, it means it was double-encoded. Parse again.
+    if (typeof parsedFirst === 'string') {
+      // First clean any markdown blocks if the LLM returned it wrapped
+      parsedFirst = parsedFirst.replace(/```json/g, '').replace(/```/g, '').trim();
+      return JSON.parse(parsedFirst);
+    }
+    return parsedFirst;
   } catch (e) {
-    console.error("Failed to parse analysis result:", e);
-    return null;
+    // Fallback if the original was just a raw markdown string
+    try {
+      let cleanStr = result.replace(/```json/g, '').replace(/```/g, '').trim();
+      return JSON.parse(cleanStr);
+    } catch (e2) {
+      console.error("Failed to parse analysis result:", e2, "Raw:", result);
+      return null;
+    }
   }
 };
 
 const AnalysisDashboard = ({ data }) => {
+  // Normalize keys to support both camelCase and PascalCase from backend
+  const normalizedData = {};
+  if (data) {
+    Object.keys(data).forEach(key => {
+      const normalizedKey = key.charAt(0).toLowerCase() + key.slice(1);
+      normalizedData[normalizedKey] = data[key];
+    });
+  }
+
   const {
     overallScore,
     hookScore,
@@ -27,7 +51,7 @@ const AnalysisDashboard = ({ data }) => {
     lowPoints,
     suggestions,
     keyInsight
-  } = data || {};
+  } = normalizedData;
 
   const radius = 88;
   const circumference = 2 * Math.PI * radius;
@@ -316,12 +340,6 @@ function App() {
         </div>
         {message && <p style={{ marginTop: '20px' }}>{message}</p>}
 
-        {result && (
-          <pre style={{ marginTop: '20px', textAlign: 'left' }}>
-            {JSON.stringify(result, null, 2)}
-          </pre>
-        )}
-
         {/* Video Selection Grid */}
         {showVideos && (
           <div className="video-section">
@@ -430,10 +448,10 @@ function App() {
             {analysisLoading && <p style={{ textAlign: 'center' }}>Loading analysis results...</p>}
             {analysisResult && (() => {
               const parsedAnalysis = parseAnalysis(analysisResult);
-              if (!parsedAnalysis) {
+              if (!parsedAnalysis || Object.keys(parsedAnalysis).length === 0) {
                 return (
                   <div style={{ background: 'var(--bg-secondary, #1a1b1e)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-color, #2c2e33)' }}>
-                    <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>Raw Final Analysis</h3>
+                    <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>Raw Final Analysis (Unparsable)</h3>
                     <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: '14px', margin: 0 }}>
                       {typeof analysisResult === 'string' ? analysisResult : JSON.stringify(analysisResult, null, 2)}
                     </pre>
