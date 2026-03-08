@@ -3,30 +3,48 @@ import './index.css';
 
 const parseAnalysis = (result) => {
   if (!result) return null;
+  console.log("Raw analysis result to parse:", result);
   
-  // If result is already an object, return it.
-  if (typeof result === 'object') return result;
+  let parsed = result;
 
-  try {
-    // Sometimes backend sends a JSON string inside a JSON string.
-    let parsedFirst = JSON.parse(result);
-    // If it's still a string, it means it was double-encoded. Parse again.
-    if (typeof parsedFirst === 'string') {
-      // First clean any markdown blocks if the LLM returned it wrapped
-      parsedFirst = parsedFirst.replace(/```json/g, '').replace(/```/g, '').trim();
-      return JSON.parse(parsedFirst);
-    }
-    return parsedFirst;
-  } catch (e) {
-    // Fallback if the original was just a raw markdown string
+  // If it's a string, aggressively extract the JSON
+  if (typeof parsed === 'string') {
     try {
-      let cleanStr = result.replace(/```json/g, '').replace(/```/g, '').trim();
-      return JSON.parse(cleanStr);
-    } catch (e2) {
-      console.error("Failed to parse analysis result:", e2, "Raw:", result);
+      // First, attempt to strip markdown blocks
+      let cleanStr = parsed.replace(/```json/gi, '').replace(/```/g, '').trim();
+      
+      // Secondary fallback: Extract strictly between { and } in case LLM added conversational text
+      const firstBrace = cleanStr.indexOf('{');
+      const lastBrace = cleanStr.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace >= firstBrace) {
+          cleanStr = cleanStr.substring(firstBrace, lastBrace + 1);
+      }
+
+      parsed = JSON.parse(cleanStr);
+      
+      // If double-encoded, do it one more time
+      if (typeof parsed === 'string') {
+        cleanStr = parsed.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const fb = cleanStr.indexOf('{');
+        const lb = cleanStr.lastIndexOf('}');
+        if (fb !== -1 && lb !== -1 && lb >= fb) {
+            cleanStr = cleanStr.substring(fb, lb + 1);
+        }
+        parsed = JSON.parse(cleanStr);
+      }
+    } catch (e) {
+      console.error("Failed to parse analysis result string:", e, "Raw string was:", result);
       return null;
     }
   }
+
+  if (typeof parsed !== 'object' || parsed === null) {
+      console.error("Parsed result is not an object:", parsed);
+      return null;
+  }
+  
+  console.log("Successfully parsed object:", parsed);
+  return parsed;
 };
 
 const AnalysisDashboard = ({ data }) => {
