@@ -17,13 +17,20 @@ metrics_json = {
     "1.0": {"pulseRate": 74, "breathingRate": 13.4, "engagement": 0.7},
     "2.0": {"pulseRate": 73, "breathingRate": 13, "engagement": 0.6},
     "3.0": {"pulseRate": 74, "breathingRate": 13.4, "engagement": 0.7},
-    "4.0": {"pulseRate": 73, "breathingRate": 13, "engagement": 0.6},
-    "5.0": {"pulseRate": 74, "breathingRate": 13.4, "engagement": 0.7},
-    "6.0": {"pulseRate": 73, "breathingRate": 13, "engagement": 0.6},
+    "4.0": {"pulseRate": 95, "breathingRate": 15, "engagement": 0.7},
+    "5.0": {"pulseRate": 120, "breathingRate": 19, "engagement": 0.9},
+    "6.0": {"pulseRate": 97, "breathingRate": 15, "engagement": 0.6},
     "7.0": {"pulseRate": 74, "breathingRate": 13.4, "engagement": 0.7},
     "8.0": {"pulseRate": 73, "breathingRate": 13, "engagement": 0.6},
     "9.0": {"pulseRate": 74, "breathingRate": 13.4, "engagement": 0.7},
     "10.0": {"pulseRate": 73, "breathingRate": 13, "engagement": 0.6},
+    "11.0": {"pulseRate": 73, "breathingRate": 13, "engagement": 0.6},
+    "12.0": {"pulseRate": 74, "breathingRate": 13.4, "engagement": 0.7},
+    "13.0": {"pulseRate": 73, "breathingRate": 13, "engagement": 0.6},
+    "14.0": {"pulseRate": 74, "breathingRate": 13.4, "engagement": 0.7},
+    "15.0": {"pulseRate": 95, "breathingRate": 15, "engagement": 0.7},
+    "16.0": {"pulseRate": 120, "breathingRate": 19, "engagement": 0.9},
+    "17.0": {"pulseRate": 97, "breathingRate": 15, "engagement": 0.6}
 }
 
 api_key = os.getenv("GEMINI_API_KEY")
@@ -108,132 +115,84 @@ async def start_analysis(payload: dict):
 
     saved_filename = uploaded_ads[ad_id]["saved_filename"]
     file_path = UPLOAD_DIR / saved_filename
-    transcript = transcription(file_path)
-    summ = summary(file_path)
-    final_analysis = client.models.generate_content(
-       model="gemini-2.0-flash",
-       contents=f"""
-        You are analyzing an advertisement.
-        
-        Transcript:
-        {transcript}
-        
-        Scene summary:
-        {summ}
-        
-        Viewer biometrics:
-        {metrics_json}
-        
-        Tasks:
-        1. Identify the most engaging moments
-        2. Explain what happened in the ad during those moments
-        3. Rate hook, clarity, pacing, and CTA out of 10
-        4. Suggest 3 improvements
-        
-        Return valid JSON in the following format:
-        {
-          "overallScore": 7.6,
-          "hookScore": 8,
-          "clarityScore": 7,
-          "pacingScore": 6,
-          "ctaScore": 7,
-        
-          "strongMoments": [
-            {
-              "timestamp": "3.0-5.5",
-              "description": "Product reveal with bold text overlay",
-              "reason": "Viewer engagement increased sharply during this moment"
-            }
-          ],
-        
-          "weakMoments": [
-            {
-              "timestamp": "10.0-13.0",
-              "description": "Extended product demo",
-              "reason": "Viewer engagement dropped and pacing slowed"
-            }
-          ],
-        
-          "strongPoints": [
-            "Clear product reveal",
-            "Strong emotional hook in opening line"
-          ],
-        
-          "lowPoints": [
-            "Middle section pacing slows down",
-            "Call-to-action lacks urgency"
-          ],
-        
-          "suggestions": [
-            "Shorten the product demo by 2–3 seconds",
-            "Add a stronger CTA phrase near the end",
-            "Introduce branding earlier in the ad"
-          ],
-        
-          "engagementTimeline": [
-            {
-              "timestamp": 0.5,
-              "engagementScore": 0.52
-            },
-            {
-              "timestamp": 1.0,
-              "engagementScore": 0.61
-            }
-          ],
-        
-          "keyInsight": "Viewer engagement peaks during the product reveal, suggesting the ad's strongest element is the visual introduction of the product."
-        }
-        """
-    )
+    try:
+        uploaded_file = upload_video(file_path)
 
-    return {
-        "analysis": final_analysis
-    }
+        video_text = get_video_understanding(uploaded_file)
 
-def transcription(video_file: Path):
+        final_analysis = analyze_engagement(video_text, metrics_json)
+
+        return final_analysis
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"Analysis failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+def upload_video(video_file: Path):
     uploaded = client.files.upload(file=str(video_file))
+
     while getattr(uploaded, "state", None) and uploaded.state.name == "PROCESSING":
-        time.sleep(2)
+        # Increased to 10 seconds to avoid hitting the 15 RPM free tier quota during video processing
+        time.sleep(10)
         uploaded = client.files.get(name=uploaded.name)
-    transcript_response = client.models.generate_content(
-       model="gemini-2.0-flash",
-       contents=[
-           uploaded,
-           """
-           Transcribe all spoken words in this ad.
-           Include timestamps.
-           Return plain text in this format:
 
+    return uploaded
 
-           [0.0-2.4] text here
-           [2.4-5.1] text here
-           """
-       ]
-    )
-    transcript_text = transcript_response.text
-    return transcript_text
-
-
-def summary(video_file: Path):
-    uploaded = client.files.upload(file=str(video_file))
-    while getattr(uploaded, "state", None) and uploaded.state.name == "PROCESSING":
-        time.sleep(2)
-        uploaded = client.files.get(name=uploaded.name)
-    transcript_response = client.models.generate_content(
-        model="gemini-2.0-flash",
+def get_video_understanding(uploaded_file):
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
         contents=[
-            uploaded,
+            uploaded_file,
             """
-            Transcribe all spoken words in this ad.
-            Include timestamps.
-            Return plain text in this format:
- 
-            [0.0-2.4] text here
-            [2.4-5.1] text here
+            Analyze this advertisement video.
+
+            Return:
+
+            1) Full transcript with timestamps
+            2) Scene summary describing what visually happens
+
+            Format:
+
+            TRANSCRIPT:
+            [0.0-2.4] text
+
+            SCENES:
+            [0.0-2.4] description
             """
         ]
     )
-    return transcript_response.text
+
+    return response.text
+
+def analyze_engagement(video_text, biometrics):
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=f"""
+        You are analyzing advertisement engagement.
+
+        Video Analysis:
+        {video_text}
+
+        Viewer biometrics:
+        {biometrics}
+
+        Tasks:
+        1. Identify engaging moments
+        2. Correlate biometrics with video events
+        3. Rate hook, clarity, pacing, CTA
+        4. Suggest improvements
+
+        Return VALID JSON.
+        """,
+        config={
+        "response_mime_type": "application/json"
+        }
+    )
+
+    return response.text
 
 class SessionMetric(BaseModel):
     timestampMs: int
