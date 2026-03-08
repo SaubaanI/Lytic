@@ -6,6 +6,10 @@ from fastapi.middleware.cors import CORSMiddleware
 import uuid
 from pydantic import BaseModel
 from typing import List, Optional
+from google import genai
+import os
+
+client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
 app = FastAPI()
 app.add_middleware(
@@ -97,8 +101,43 @@ async def start_analysis(payload: dict):
         "duration_seconds": duration_seconds
     }
 
-#@app.post("/analysis/metrics")
-#async def upload_metrics(payload: dict):
+def transcription(video_file: Path):
+   transcript_response = client.models.generate_content(
+       model="gemini-2.0-flash",
+       contents=[
+           video_file,
+           """
+           Transcribe all spoken words in this ad.
+           Include timestamps.
+           Return plain text in this format:
+
+
+           [0.0-2.4] text here
+           [2.4-5.1] text here
+           """
+       ]
+   )
+   transcript_text = transcript_response.text
+   return transcript_text
+
+
+def summary(video_file: Path):
+   summary_response = client.models.generate_content(
+       model="gemini-2.0-flash",
+       contents=[
+           video_file,
+           """
+           Describe this advertisement scene by scene.
+           Include timestamps and key moments such as:
+           - hook
+           - product reveal
+           - call to action
+           Return concise bullet points.
+           """
+       ]
+   )
+   scene_summary = summary_response.text
+   return scene_summary
 
 class SessionMetric(BaseModel):
     timestampMs: int
