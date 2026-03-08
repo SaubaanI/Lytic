@@ -11,6 +11,8 @@ function App() {
   const [videos, setVideos] = useState([]);
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [view, setView] = useState('home');
+  const [analysisResult, setAnalysisResult] = useState(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
 
   const fetchVideos = async () => {
     try {
@@ -179,6 +181,8 @@ function App() {
                     disabled={!selectedVideo}
                     onClick={async () => {
                       setView('analysis');
+                      setAnalysisResult(null);
+                      setAnalysisLoading(true);
                       try {
                         const ad_id = selectedVideo.split('_')[0];
                         console.log('Starting analysis for ad:', ad_id);
@@ -189,8 +193,11 @@ function App() {
                         });
                         const data = await response.json();
                         console.log('Analysis start response:', data);
+                        setAnalysisResult(data);
                       } catch (error) {
                         console.error('Failed to start analysis:', error);
+                      } finally {
+                        setAnalysisLoading(false);
                       }
                     }}
                   >
@@ -241,6 +248,18 @@ function App() {
                 autoPlay
                 className="analysis-video-player"
               />
+            )}
+          </div>
+          
+          <div style={{ marginTop: '2rem', width: '100%', maxWidth: '800px', margin: '2rem auto', color: 'var(--text-color)' }}>
+            {analysisLoading && <p style={{ textAlign: 'center' }}>Loading analysis results...</p>}
+            {analysisResult && (
+              <div style={{ background: 'var(--bg-secondary, #1a1b1e)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-color, #2c2e33)' }}>
+                <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>Raw Final Analysis</h3>
+                <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: '14px', margin: 0 }}>
+                  {typeof analysisResult === 'string' ? analysisResult : JSON.stringify(analysisResult, null, 2)}
+                </pre>
+              </div>
             )}
           </div>
         </main>
