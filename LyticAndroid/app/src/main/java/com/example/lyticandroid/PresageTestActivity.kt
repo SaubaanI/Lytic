@@ -1,193 +1,492 @@
+
+
 package com.example.lyticandroid
 
+
 import android.os.Bundle
-import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
-import com.presagetech.smartspectra.SmartSpectraSdk
-import com.presagetech.smartspectra.SmartSpectraView
-import com.presage.physiology.proto.MetricsProto.MetricsBuffer
-import android.util.Log
-import com.google.gson.GsonBuilder
-import java.io.File
-import com.presagetech.smartspectra.SmartSpectraMode
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
+import android.view.View
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import com.google.gson.GsonBuilder
+import com.presage.physiology.proto.MetricsProto.MetricsBuffer
+import com.presagetech.smartspectra.SmartSpectraMode
+import com.presagetech.smartspectra.SmartSpectraSdk
+import com.presagetech.smartspectra.SmartSpectraView
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.File
+import java.util.TimeZone
+import kotlin.math.ceil
+import kotlin.math.max
+
 
 class PresageTestActivity : AppCompatActivity() {
 
-    private var sessionSaved = false
-    private var saveScheduled = false
-    private val backendUrl = "https://gesticulatory-unenvious-sharonda.ngrok-free.dev/session"
-    private lateinit var smartSpectraView: SmartSpectraView
-    private lateinit var statusText: TextView
-    private lateinit var pulseText: TextView
-    private lateinit var breathingText: TextView
 
-    data class SessionMetric(
-        val timestampMs: Long,
-        val pulseRate: Float?,
-        val pulseConfidence: Float?,
-        val breathingRate: Float?,
-        val breathingConfidence: Float?
-    )
+   // Change this to your real endpoint that receives final Android biometric payload
+   private val uploadUrl = "https://gesticulatory-unenvious-sharonda.ngrok-free.dev/session"
 
-    data class SessionExport(
-        val adId: String,
-        val sessionStartedAtMs: Long,
-        val sampleCount: Int,
-        val deviceTimeZone: String,
-        val metrics: List<SessionMetric>
-    )
 
-    private var apiKey = "g9DATUpRNc3K66UrRtSYt2KG0isRSzts2TWGPC84"
+   private val apiKey = "g9DATUpRNc3K66UrRtSYt2KG0isRSzts2TWGPC84"
 
-    private val sessionMetrics = mutableListOf<SessionMetric>()
-    private var sessionStartTime = 0L
 
-    private val smartSpectraSdk: SmartSpectraSdk = SmartSpectraSdk.getInstance().apply {
-        setApiKey(apiKey)
-        setSmartSpectraMode(SmartSpectraMode.CONTINUOUS)
-        setMeasurementDuration(30.0)
-        setRecordingDelay(3)
+   private lateinit var smartSpectraView: SmartSpectraView
+   private lateinit var statusText: TextView
+   private lateinit var pulseText: TextView
+   private lateinit var breathingText: TextView
 
-        setMetricsBufferObserver { metricsBuffer ->
-            handleMetricsBuffer(metricsBuffer)
-        }
-    }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_presage_test)
+   private val mainHandler = Handler(Looper.getMainLooper())
+   private val httpClient = OkHttpClient()
 
-        smartSpectraView = findViewById(R.id.smart_spectra_view)
-        statusText = findViewById(R.id.status_text)
-        pulseText = findViewById(R.id.pulse_text)
-        breathingText = findViewById(R.id.breathing_text)
 
-        sessionStartTime = System.currentTimeMillis()
-        statusText.text = "Status: ready to scan"
-        Log.d("SESSION_UPLOAD", "backendUrl = $backendUrl")
-    }
+   private var sessionSaved = false
+   private var sessionClockStarted = false
+   private var sessionClockStartMs: Long = 0L
 
-    private fun handleMetricsBuffer(metrics: MetricsBuffer) {
-        val elapsed = System.currentTimeMillis() - sessionStartTime
 
-        val latestPulse = metrics.pulse.rateList.lastOrNull()
-        val latestBreathing = metrics.breathing.rateList.lastOrNull()
+   // These now come dynamically from frontend/backend
+   private var sessionId: String = ""
+   private var adId: String = "test_ad_001"
+   private var durationSeconds: Int = 60
+   private var startBufferMs: Int = 1500
+   private var stopBufferMs: Int = 1500
 
-        val pulseRate = latestPulse?.value
-        val pulseConfidence = latestPulse?.confidence
 
-        val breathingRate = latestBreathing?.value
-        val breathingConfidence = latestBreathing?.confidence
+   // Computed dynamically
+   private var captureWindowMs: Long = 57000L
+   private var maxSeconds: Int = 57
 
-        sessionMetrics.add(
-            SessionMetric(
-                timestampMs = elapsed,
-                pulseRate = pulseRate,
-                pulseConfidence = pulseConfidence,
-                breathingRate = breathingRate,
-                breathingConfidence = breathingConfidence
-            )
-        )
 
-        Log.d(
-            "PRESAGE_SESSION",
-            "t=$elapsed pulse=$pulseRate pulseConf=$pulseConfidence breathing=$breathingRate breathingConf=$breathingConfidence"
-        )
+   private var finishRunnable: Runnable? = null
 
-        runOnUiThread {
-            statusText.text = "Status: measuring"
-            pulseText.text = "Pulse: ${pulseRate ?: "--"}"
-            breathingText.text = "Breathing: ${breathingRate ?: "--"}"
-        }
 
-        if (!saveScheduled && sessionMetrics.isNotEmpty()){
-            saveScheduled = true
+   private val sessionMetrics = mutableListOf<SessionMetric>()
+   private val secondToReading = mutableMapOf<Int, SessionMetric>()
 
-            Handler(Looper.getMainLooper()).postDelayed({
-                if(!sessionSaved && sessionMetrics.isNotEmpty()){
-                    sessionSaved = true
-                    saveSessionToJsonFile()
-                }
-            }, 1000)
 
-        }
-    }
+   data class SessionMetric(
+       val timestampMs: Int,
+       val pulseRate: Float? = null,
+       val pulseConfidence: Float? = null,
+       val breathingRate: Float? = null,
+       val breathingConfidence: Float? = null
+   )
 
-    private fun saveSessionToJsonFile() {
-        val export = SessionExport(
-            adId = "test_ad_01",
-            sessionStartedAtMs = sessionStartTime,
-            sampleCount = sessionMetrics.size,
-            deviceTimeZone = java.util.TimeZone.getDefault().id,
-            metrics = sessionMetrics
-        )
 
-        val gson = GsonBuilder()
-            .setPrettyPrinting()
-            .create()
+   data class SessionExport(
+       val sessionId: String,
+       val adId: String,
+       val deviceTimeZone: String,
+       val metrics: List<SessionMetric>
+   )
 
-        val json = gson.toJson(export)
 
-        val file = File(filesDir, "session_${System.currentTimeMillis()}.json")
-        file.writeText(json)
+   private val smartSpectraSdk: SmartSpectraSdk = SmartSpectraSdk.getInstance().apply {
+       setApiKey(apiKey)
+       setSmartSpectraMode(SmartSpectraMode.CONTINUOUS)
 
-        Log.d("SESSION_JSON", "SAVING NOW")
-        Log.d("SESSION_JSON", json)
-        Log.d("SESSION_JSON", "Saved to: ${file.absolutePath}")
 
-        uploadSessionJson(json)
+       setMetricsBufferObserver { metricsBuffer ->
+           handleMetricsBuffer(metricsBuffer)
+       }
+   }
 
-        runOnUiThread {
-            statusText.text = "Status: saved ${sessionMetrics.size} samples"
-        }
-    }
 
-    override fun onPause() {
-        super.onPause()
-        if (sessionMetrics.isNotEmpty()) {
-            saveSessionToJsonFile()
-        }
-    }
+   override fun onCreate(savedInstanceState: Bundle?) {
+       super.onCreate(savedInstanceState)
+       setContentView(R.layout.activity_presage_test)
 
-    private fun resetSession(){
-        sessionSaved = false
-        saveScheduled = false
-        sessionMetrics.clear()
-        sessionStartTime = System.currentTimeMillis()
 
-        runOnUiThread {
-            statusText.text = "Status: ready to scan"
-            pulseText.text = "Pulse: --"
-            breathingText.text = "Breathing: --"
-        }
-    }
+       smartSpectraView = findViewById(R.id.smart_spectra_view)
+       statusText = findViewById(R.id.status_text)
+       pulseText = findViewById(R.id.pulse_text)
+       breathingText = findViewById(R.id.breathing_text)
 
-    private fun uploadSessionJson(json: String){
-        val client = OkHttpClient()
 
-        val requestBody = json.toRequestBody("application/json".toMediaType())
+       loadSessionConfigFromIntent()
+       recalculateCaptureWindow()
+       resetSession(adId)
 
-        val request = Request.Builder()
-            .url(backendUrl)
-            .post(requestBody)
-            .build()
 
-        Thread{
-            try{
-                client.newCall(request).execute().use{ response ->
-                    val responseBody = response.body?.string()
-                    Log.d("SESSION_UPLOAD", "code = ${response.code} body = $responseBody")
-                }
-            } catch (e: Exception){
-                Log.e("SESSION_UPLOAD", "upload failed: ${e.message}", e)
-            }
-        }.start()
-    }
+       Log.d("SESSION_FLOW", "Activity created")
+       Log.d("SESSION_FLOW", "SmartSpectra mode = CONTINUOUS")
+       Log.d("SESSION_UPLOAD", "uploadUrl = $uploadUrl")
+       Log.d(
+           "SESSION_CONFIG",
+           "sessionId=$sessionId adId=$adId durationSeconds=$durationSeconds " +
+                   "startBufferMs=$startBufferMs stopBufferMs=$stopBufferMs " +
+                   "captureWindowMs=$captureWindowMs maxSeconds=$maxSeconds"
+       )
+   }
+
+
+   private fun loadSessionConfigFromIntent() {
+       sessionId = intent.getStringExtra("session_id") ?: ""
+       adId = intent.getStringExtra("ad_id") ?: "test_ad_001"
+       durationSeconds = intent.getIntExtra("duration_seconds", 60)
+       startBufferMs = intent.getIntExtra("start_buffer_ms", 1500)
+       stopBufferMs = intent.getIntExtra("stop_buffer_ms", 1500)
+
+
+       if (sessionId.isBlank()) {
+           // Temporary fallback for testing
+           sessionId = "local_test_session_${System.currentTimeMillis()}"
+       }
+   }
+
+
+   private fun recalculateCaptureWindow() {
+       val totalVideoMs = durationSeconds * 1000L
+       val usableMs = totalVideoMs - startBufferMs - stopBufferMs
+
+
+       captureWindowMs = max(1000L, usableMs)
+       maxSeconds = ceil(captureWindowMs / 1000.0).toInt()
+   }
+
+
+   private fun handleMetricsBuffer(metrics: MetricsBuffer) {
+       if (sessionSaved) {
+           Log.d("SESSION_FLOW", "Ignoring metrics because session already saved")
+           return
+       }
+
+
+       val latestPulse = metrics.pulse.rateList.lastOrNull()
+       val latestBreathing = metrics.breathing.rateList.lastOrNull()
+
+
+       val pulseRate = latestPulse?.value
+       val pulseConfidence = latestPulse?.confidence
+       val breathingRate = latestBreathing?.value
+       val breathingConfidence = latestBreathing?.confidence
+
+
+       val hasUsefulData =
+           pulseRate != null ||
+                   pulseConfidence != null ||
+                   breathingRate != null ||
+                   breathingConfidence != null
+
+
+       runOnUiThread {
+           if (hasUsefulData) {
+               pulseText.text = "Pulse: ${pulseRate ?: "--"}"
+               breathingText.text = "Breathing: ${breathingRate ?: "--"}"
+           } else {
+               pulseText.text = "Pulse: --"
+               breathingText.text = "Breathing: --"
+           }
+       }
+
+
+       if (!sessionClockStarted) {
+           if (!hasUsefulData) {
+               runOnUiThread {
+                   statusText.text = "Status: waiting for real measurement"
+               }
+               return
+           }
+
+
+           sessionClockStarted = true
+           sessionClockStartMs = System.currentTimeMillis()
+
+
+           val totalRunMs = startBufferMs.toLong() + captureWindowMs
+
+
+           Log.d(
+               "SESSION_FLOW",
+               "First real measurement received. " +
+                       "Session clock started. totalRunMs=$totalRunMs"
+           )
+
+
+           finishRunnable = Runnable {
+               Log.d("SESSION_FLOW", "Capture window complete, finishing session")
+               finishSession()
+           }
+           mainHandler.postDelayed(finishRunnable!!, totalRunMs)
+       }
+
+
+       val totalElapsedMs = System.currentTimeMillis() - sessionClockStartMs
+
+
+       // Still inside start buffer, do not capture yet
+       if (totalElapsedMs < startBufferMs) {
+           val remaining = startBufferMs - totalElapsedMs
+           runOnUiThread {
+               statusText.text = "Status: waiting start buffer (${remaining}ms left)"
+           }
+           Log.d("SESSION_CAPTURE", "Inside start buffer, skipping capture")
+           return
+       }
+
+
+       val captureElapsedMs = totalElapsedMs - startBufferMs
+
+
+       if (captureElapsedMs >= captureWindowMs) {
+           Log.d("SESSION_CAPTURE", "Past capture window, ignoring callback")
+           return
+       }
+
+
+       val tSec = (captureElapsedMs / 1000L).toInt()
+
+
+       if (tSec !in 0 until maxSeconds) {
+           Log.d("SESSION_CAPTURE", "Ignoring callback outside valid second window: tSec=$tSec")
+           return
+       }
+
+
+       if (!hasUsefulData) {
+           Log.d("SESSION_CAPTURE", "No useful data at tSec=$tSec")
+           return
+       }
+
+
+       Log.d(
+           "PRESAGE_RAW",
+           "sessionId=$sessionId adId=$adId tSec=$tSec " +
+                   "pulse=$pulseRate pulseConf=$pulseConfidence " +
+                   "breathing=$breathingRate breathingConf=$breathingConfidence"
+       )
+
+
+       secondToReading[tSec] = SessionMetric(
+           timestampMs = tSec,
+           pulseRate = pulseRate,
+           pulseConfidence = pulseConfidence,
+           breathingRate = breathingRate,
+           breathingConfidence = breathingConfidence
+       )
+
+
+       Log.d(
+           "SESSION_CAPTURE",
+           "Captured reading for sec=$tSec/$maxSeconds " +
+                   "pulse=$pulseRate pulseConf=$pulseConfidence " +
+                   "breathing=$breathingRate breathingConf=$breathingConfidence"
+       )
+
+
+       runOnUiThread {
+           statusText.text = "Status: measuring second ${tSec + 1}/$maxSeconds"
+       }
+   }
+
+
+   private fun buildFinalMetrics() {
+       sessionMetrics.clear()
+
+
+       var lastKnownMetric: SessionMetric? = null
+
+
+       for (sec in 0 until maxSeconds) {
+           val metricForThisSecond = secondToReading[sec]
+
+
+           val finalMetric = when {
+               metricForThisSecond != null -> {
+                   lastKnownMetric = metricForThisSecond
+                   metricForThisSecond
+               }
+               lastKnownMetric != null -> {
+                   SessionMetric(
+                       timestampMs = sec,
+                       pulseRate = lastKnownMetric!!.pulseRate,
+                       pulseConfidence = lastKnownMetric!!.pulseConfidence,
+                       breathingRate = lastKnownMetric!!.breathingRate,
+                       breathingConfidence = lastKnownMetric!!.breathingConfidence
+                   )
+               }
+               else -> {
+                   SessionMetric(
+                       timestampMs = sec,
+                       pulseRate = null,
+                       pulseConfidence = null,
+                       breathingRate = null,
+                       breathingConfidence = null
+                   )
+               }
+           }
+
+
+           sessionMetrics.add(finalMetric)
+
+
+           Log.d(
+               "SESSION_FINAL",
+               "sec=${finalMetric.timestampMs} " +
+                       "pulse=${finalMetric.pulseRate} pulseConf=${finalMetric.pulseConfidence} " +
+                       "breathing=${finalMetric.breathingRate} breathingConf=${finalMetric.breathingConfidence}"
+           )
+       }
+   }
+
+
+   private fun saveSessionToJsonFile() {
+       if (sessionSaved) {
+           Log.d("SESSION_JSON", "saveSessionToJsonFile skipped because already saved")
+           return
+       }
+
+
+       sessionSaved = true
+
+
+       val export = SessionExport(
+           sessionId = sessionId,
+           adId = adId,
+           deviceTimeZone = TimeZone.getDefault().id,
+           metrics = sessionMetrics.toList()
+       )
+
+
+       val gson = GsonBuilder()
+           .serializeNulls()
+           .setPrettyPrinting()
+           .create()
+
+
+       val json = gson.toJson(export)
+
+
+       val file = File(filesDir, "session_${System.currentTimeMillis()}.json")
+       file.writeText(json)
+
+
+       Log.d("SESSION_JSON", "SAVING NOW")
+       Log.d("SESSION_JSON", json)
+       Log.d("SESSION_JSON", "Saved to: ${file.absolutePath}")
+
+
+       uploadSessionJson(json)
+
+
+       runOnUiThread {
+           statusText.text = "Status: saved ${sessionMetrics.size} samples"
+       }
+   }
+
+
+   private fun uploadSessionJson(json: String) {
+       Log.d("SESSION_UPLOAD", "Starting upload to $uploadUrl")
+
+
+       val requestBody = json.toRequestBody("application/json".toMediaType())
+
+
+       val request = Request.Builder()
+           .url(uploadUrl)
+           .post(requestBody)
+           .build()
+
+
+       Thread {
+           try {
+               httpClient.newCall(request).execute().use { response ->
+                   val responseBody = response.body?.string()
+                   Log.d("SESSION_UPLOAD", "code=${response.code} body=$responseBody")
+               }
+           } catch (e: Exception) {
+               Log.e("SESSION_UPLOAD", "Upload failed: ${e.message}", e)
+           }
+       }.start()
+   }
+
+
+   private fun finishSession() {
+       if (sessionSaved) {
+           Log.d("SESSION_FLOW", "finishSession skipped because already saved")
+           return
+       }
+
+
+       Log.d("SESSION_FLOW", "Finishing session")
+
+
+       try {
+           finishRunnable?.let { mainHandler.removeCallbacks(it) }
+           finishRunnable = null
+       } catch (e: Exception) {
+           Log.e("SESSION_FLOW", "Failed removing finish runnable: ${e.message}", e)
+       }
+
+
+       buildFinalMetrics()
+
+
+       runOnUiThread {
+           statusText.text = "Status: finishing session"
+       }
+
+
+       try {
+           smartSpectraView.visibility = View.GONE
+       } catch (e: Exception) {
+           Log.e("SESSION_FLOW", "Failed hiding SmartSpectraView: ${e.message}", e)
+       }
+
+
+       saveSessionToJsonFile()
+   }
+
+
+   private fun resetSession(newAdId: String) {
+       adId = newAdId
+
+
+       sessionSaved = false
+       sessionClockStarted = false
+       sessionClockStartMs = 0L
+
+
+       sessionMetrics.clear()
+       secondToReading.clear()
+
+
+       finishRunnable?.let { mainHandler.removeCallbacks(it) }
+       finishRunnable = null
+
+
+       runOnUiThread {
+           smartSpectraView.visibility = View.VISIBLE
+           statusText.text =
+               "Status: ready | duration=${durationSeconds}s | startBuffer=${startBufferMs}ms | stopBuffer=${stopBufferMs}ms | capture=${maxSeconds}s"
+           pulseText.text = "Pulse: --"
+           breathingText.text = "Breathing: --"
+       }
+
+
+       Log.d(
+           "SESSION_FLOW",
+           "resetSession sessionId=$sessionId adId=$adId durationSeconds=$durationSeconds " +
+                   "startBufferMs=$startBufferMs stopBufferMs=$stopBufferMs maxSeconds=$maxSeconds"
+       )
+   }
+
+
+   override fun onDestroy() {
+       super.onDestroy()
+
+
+       finishRunnable?.let { mainHandler.removeCallbacks(it) }
+       finishRunnable = null
+
+
+       Log.d("SESSION_FLOW", "Activity destroyed")
+   }
 }
 
