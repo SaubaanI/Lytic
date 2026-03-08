@@ -137,10 +137,23 @@ class PresageTestActivity : AppCompatActivity() {
 
 
    private fun loadSessionConfigFromIntent() {
+       // 1. Try to get it from Extras
        sessionId = (intent.getStringExtra("session_id") ?: "").trim()
+       
+       // 2. Try to get it from Deep Link URI (lytic://session/ID)
        if (sessionId.isBlank()) {
-           Log.w("SESSION_FLOW", "WARNING: sessionId ('session_id') is missing from intent!")
+           intent.data?.let { uri ->
+               Log.d("SESSION_FLOW", "Extracting ID from URI: $uri")
+               sessionId = uri.lastPathSegment ?: ""
+           }
        }
+
+
+       if (sessionId.isBlank()) {
+           Log.w("SESSION_FLOW", "WARNING: sessionId ('session_id') is missing from intent! Using fallback for debug.")
+           sessionId = "manual_debug_${System.currentTimeMillis()}"
+       }
+       
        durationSeconds = intent.getIntExtra("duration_seconds", 60)
        startBufferMs = intent.getIntExtra("start_buffer_ms", 1500)
        stopBufferMs = intent.getIntExtra("stop_buffer_ms", 1500)

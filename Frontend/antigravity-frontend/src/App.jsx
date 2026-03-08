@@ -420,7 +420,13 @@ function App() {
                     {sessionStatus === 'collecting' && "Ready! Please start biometric collection on your mobile device."}
                     {sessionStatus === 'processing' && "Biometrics received. Generating final analysis..."}
                   </p>
-                  {sessionId && <p className="session-id-display">Session ID: <code>{sessionId}</code></p>}
+                  {sessionId && (
+                    <p className="session-id-display">
+                      Session ID: <a href={`lytic://session/${sessionId}`} className="session-link"><code>{sessionId}</code></a>
+                      <br/>
+                      <small style={{opacity: 0.7, fontSize: '0.7rem'}}>(Click to open on Android)</small>
+                    </p>
+                  )}
                 </div>
               </div>
             )}
